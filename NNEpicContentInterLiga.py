@@ -199,8 +199,11 @@ def ligaPaisPrimera(liga,ligaDestino):
 
     new_metrics2 = np.array([[liga]])  # Asegurar que sea 2D
     pred2 = model2.predict(new_metrics2)
+    print("pred2")
     print(pred2)
     data2=pred2[0]
+    print(data2)
+    print(data2[ligaDestino-1])
     return data2[ligaDestino-1]
 
 

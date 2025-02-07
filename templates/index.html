@@ -39,13 +39,13 @@
 <body>
     <div class="container">
         <div class="form-container">
-            <h1 class="form-title">League Comparator</h1>
+            <h1 class="form-title">Comparador de Ligas</h1>
             <form id="compare-form">
                 <!-- First Country -->
                 <div class="mb-3">
-                    <label for="country1" class="form-label">Select First Country:</label>
+                    <label for="country1" class="form-label">Selecciona el Primer País:</label>
                     <select id="country1" class="form-select" onchange="populateLeagues('country1', 'league1')">
-                        <option value="">Select a country</option>
+                        <option value="">Selecciona un País</option>
                         {% for country in countries.keys() %}
                             <option value="{{ country }}">{{ country }}</option>
                         {% endfor %}
@@ -54,17 +54,17 @@
 
                 <!-- First League -->
                 <div class="mb-3">
-                    <label for="league1" class="form-label">Select First League:</label>
+                    <label for="league1" class="form-label">Selecciona una Liga:</label>
                     <select id="league1" class="form-select">
-                        <option value="">Select a league</option>
+                        <option value="">Selecciona una Liga</option>
                     </select>
                 </div>
 
                 <!-- Second Country -->
                 <div class="mb-3">
-                    <label for="country2" class="form-label">Select Second Country:</label>
+                    <label for="country2" class="form-label">Selecciona un Segundo País:</label>
                     <select id="country2" class="form-select">
-                        <option value="">Select a country</option>
+                        <option value="">Selecciona un País</option>
                         {% for country in countries.keys() %}
                             <option value="{{ country }}">{{ country }}</option>
                         {% endfor %}
@@ -75,7 +75,7 @@
                 
 
                 <!-- Submit Button -->
-                <button type="button" class="btn btn-primary" onclick="compareLeagues()">Compare</button>
+                <button type="button" class="btn btn-primary" onclick="compareLeagues()">Comparar</button>
             </form>
 ,
             <!-- Result -->
