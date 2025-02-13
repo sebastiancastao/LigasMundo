@@ -123,25 +123,47 @@
 
         // Compare leagues
         async function compareLeagues() {
-            const data = {
-                country1: document.getElementById("country1").value,
-                league1: document.getElementById("league1").value,
-                country2: document.getElementById("country2").value,
-                
-            };
+            try {
+                const data = {
+                    country1: document.getElementById("country1").value,
+                    league1: document.getElementById("league1").value,
+                    country2: document.getElementById("country2").value
+                };
 
-            const response = await fetch("/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data),
-            });
+                // Validate input
+                if (!data.country1 || !data.league1 || !data.country2) {
+                    document.getElementById('result').textContent = "Please fill in all fields";
+                    document.getElementById('salary-info').style.display = 'none';
+                    return;
+                }
 
-            const result = await response.json();
-            handleResponse(result);
+                const response = await fetch("/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                handleResponse(result);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').textContent = "An error occurred while processing your request";
+                document.getElementById('salary-info').style.display = 'none';
+            }
         }
 
         // Update your existing AJAX success handler
         function handleResponse(response) {
+            if (response.error) {
+                document.getElementById('result').textContent = response.result || response.error;
+                document.getElementById('salary-info').style.display = 'none';
+                return;
+            }
+
             document.getElementById('result').textContent = response.result;
             
             const salaryInfo = response.salary_info;
