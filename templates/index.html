@@ -79,7 +79,24 @@
             </form>
 ,
             <!-- Result -->
-            <p id="result"></p>
+            <div id="result-container">
+                <p id="result"></p>
+                <div id="salary-info" style="display: none;">
+                    <h3>Salary Information:</h3>
+                    <div id="original-league">
+                        <h4>Original League</h4>
+                        <p>Minimum: €<span id="original-min"></span></p>
+                        <p>Average: €<span id="original-avg"></span></p>
+                        <p>Maximum: €<span id="original-max"></span></p>
+                    </div>
+                    <div id="predicted-league">
+                        <h4>Predicted League</h4>
+                        <p>Minimum: €<span id="predicted-min"></span></p>
+                        <p>Average: €<span id="predicted-avg"></span></p>
+                        <p>Maximum: €<span id="predicted-max"></span></p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -121,6 +138,25 @@
 
             const result = await response.json();
             document.getElementById("result").textContent = result || result.error;
+            
+            const salaryInfo = result.salary_info;
+            if (salaryInfo) {
+                document.getElementById('salary-info').style.display = 'block';
+                
+                if (salaryInfo.original) {
+                    document.getElementById('original-min').textContent = salaryInfo.original.salaries.min.toLocaleString();
+                    document.getElementById('original-avg').textContent = salaryInfo.original.salaries.avg.toLocaleString();
+                    document.getElementById('original-max').textContent = salaryInfo.original.salaries.max.toLocaleString();
+                }
+                
+                if (salaryInfo.predicted) {
+                    document.getElementById('predicted-min').textContent = salaryInfo.predicted.salaries.min.toLocaleString();
+                    document.getElementById('predicted-avg').textContent = salaryInfo.predicted.salaries.avg.toLocaleString();
+                    document.getElementById('predicted-max').textContent = salaryInfo.predicted.salaries.max.toLocaleString();
+                }
+            } else {
+                document.getElementById('salary-info').style.display = 'none';
+            }
         }
     </script>
 </body>
