@@ -127,6 +127,9 @@ def home():
             league1 = data.get("league1")
             country2 = data.get("country2")
             
+            # Store original country2 name for salary data
+            original_country2 = country2
+            
             # Validate input
             if not all([country1, league1, country2]):
                 return jsonify({
@@ -330,13 +333,13 @@ def home():
                         "salaries": salary_data[country1][league_type]
                     }
                 
-                # Get salary data for predicted league
-                if isinstance(country2, str) and country2 in salary_data:  # Make sure country2 is a string
+                # Use original_country2 instead of country2 for salary data
+                if original_country2 in salary_data:
                     predicted_type = "Primera" if "Primera" in predicted_league else "Segunda" if "Segunda" in predicted_league else "Tercera"
                     salary_info["predicted"] = {
-                        "country": country2,
+                        "country": original_country2,
                         "league": predicted_league,
-                        "salaries": salary_data[country2][predicted_type]
+                        "salaries": salary_data[original_country2][predicted_type]
                     }
 
                 response = {
