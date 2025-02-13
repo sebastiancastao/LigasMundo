@@ -137,19 +137,26 @@
             });
 
             const result = await response.json();
-            document.getElementById("result").textContent = result || result.error;
+            handleResponse(result);
+        }
+
+        // Update your existing AJAX success handler
+        function handleResponse(response) {
+            document.getElementById('result').textContent = response.result;
             
-            const salaryInfo = result.salary_info;
+            const salaryInfo = response.salary_info;
             if (salaryInfo) {
                 document.getElementById('salary-info').style.display = 'block';
                 
                 if (salaryInfo.original) {
+                    document.getElementById('original-league-name').textContent = response.original_league;
                     document.getElementById('original-min').textContent = salaryInfo.original.salaries.min.toLocaleString();
                     document.getElementById('original-avg').textContent = salaryInfo.original.salaries.avg.toLocaleString();
                     document.getElementById('original-max').textContent = salaryInfo.original.salaries.max.toLocaleString();
                 }
                 
                 if (salaryInfo.predicted) {
+                    document.getElementById('predicted-league-name').textContent = response.predicted_league;
                     document.getElementById('predicted-min').textContent = salaryInfo.predicted.salaries.min.toLocaleString();
                     document.getElementById('predicted-avg').textContent = salaryInfo.predicted.salaries.avg.toLocaleString();
                     document.getElementById('predicted-max').textContent = salaryInfo.predicted.salaries.max.toLocaleString();

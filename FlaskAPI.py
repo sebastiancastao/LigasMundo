@@ -206,12 +206,16 @@ def home():
         if country2=="Spain" or country2=="España":
             if resultNum==0:
                 result="La Liga Española equivalente es: La Liga"
+                predicted_league = "La Liga"
             elif resultNum==1:
                 result="La Liga Española equivalente es: Segunda División"
+                predicted_league = "Segunda División"
             elif resultNum==2:
                 result="La Liga Española equivalente es: Primera Federación"
+                predicted_league = "Primera Federación"
             elif resultNum==3:
-                result="La Liga Española equivalente es: Segunda Federación" 
+                result="La Liga Española equivalente es: Segunda Federación"
+                predicted_league = "Segunda Federación"
         else: 
                 if country2=="United States" or country2=="Estados Unidos":
                     country2=13
@@ -288,10 +292,13 @@ def home():
                     
                 if indice==0:
                     result="La Liga equivalente es: Primera División"
+                    predicted_league = "Primera División"
                 elif indice==1:
                     result="La Liga equivalente es: Segunda División"
+                    predicted_league = "Segunda División"
                 elif indice==2: 
                     result="La Liga equivalente es: Tercera División"
+                    predicted_league = "Tercera División"
                 
                 
             
@@ -304,12 +311,11 @@ def home():
        
         # Add salary information to the response
         try:
-            predicted_league = result.split(": ")[1]  # Extract the predicted league name
             salary_info = {}
             
             # Get salary data for original league
             if country1 in salary_data:
-                league_type = "Primera" if league1 == "Primera División" else "Segunda" if league1 == "Segunda División" else "Tercera"
+                league_type = "Primera" if "Primera" in league1 else "Segunda" if "Segunda" in league1 else "Tercera"
                 salary_info["original"] = {
                     "country": country1,
                     "league": league1,
@@ -327,12 +333,16 @@ def home():
 
             response = {
                 "result": result,
+                "original_league": league1,
+                "predicted_league": predicted_league,
                 "salary_info": salary_info
             }
-        except:
+        except Exception as e:
             # If there's any error getting salary data, return just the result
             response = {
-                "result": result
+                "result": result,
+                "original_league": league1,
+                "predicted_league": predicted_league
             }
 
         return jsonify(response)
