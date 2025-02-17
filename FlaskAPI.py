@@ -1,6 +1,21 @@
 from flask import Flask, request, render_template, jsonify
 from NNEpicContentInterLiga import paisPrimeraDivisionEsp, paisSegundaDivisionEsp, paisTerceraDivisionEsp, ligaPaisPrimera, ligaPaisSegunda, ligaPaisTercera
+import json
+import logging
+import traceback
+import sys
+import codecs
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
+app.config['JSON_AS_ASCII'] = False
+app.config['JSONIFY_MIMETYPE'] = 'application/json;charset=utf-8'
+
+# Forzar codificación UTF-8 para stdout
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer)
 
 # Update salary data with all countries from spreadsheet
 salary_data = {
@@ -81,291 +96,347 @@ salary_data = {
                  "Tercera": {"min": 558, "avg": 2232, "max": 5580}},
     "Luxemburgo": {"Primera": {"min": 16740, "avg": 33480, "max": 66960},
                   "Segunda": {"min": 5580, "avg": 13392, "max": 27900},
-                  "Tercera": {"min": 1116, "avg": 5580, "max": 11160}}
+                  "Tercera": {"min": 1116, "avg": 5580, "max": 11160}},
+    "Espana": {"Primera": {"min": 150000, "avg": 2500000, "max": 10000000},
+               "Segunda": {"min": 50000, "avg": 500000, "max": 2000000},
+               "Tercera": {"min": 20000, "avg": 100000, "max": 500000}}
 }
 
-# Datos de ejemplo
+# Update the countries dictionary to use consistent league names
 countries = {
-    
-    "España": ["La Liga", "Segunda División", "Primera Federación", "Segunda Federación"],
-    "Inglaterra": ["Primera División", "Segunda División", "Tercera División"],
-    "Marruecos": ["Primera División", "Segunda División", "Tercera División"],
-    "Francia": ["Primera División", "Segunda División", "Tercera División"],
-    "China": ["Primera División", "Segunda División", "Tercera División"],
-    "Portugal": ["Primera División", "Segunda División", "Tercera División"],
-    "Costa Rica": ["Primera División", "Segunda División", "Tercera División"],
-    "Brasil": ["Primera División", "Segunda División", "Tercera División"],
-    "Argentina": ["Primera División", "Segunda División", "Tercera División"],
-    "México": ["Primera División", "Segunda División", "Tercera División"],
-    "Estados Unidos": ["Primera División", "Segunda División", "Tercera División"],
-    "Sahara Occidental": ["Primera División", "Segunda División", "Tercera División"],
-    "Arabia Saudita": ["Primera División", "Segunda División", "Tercera División"],
-    "Bolivia": ["Primera División", "Segunda División", "Tercera División"],
-    "Polonia": ["Primera División", "Segunda División", "Tercera División"],
-    "Egipto": ["Primera División", "Segunda División", "Tercera División"],
-    "Colombia": ["Primera División", "Segunda División", "Tercera División"],
-    "Paraguay": ["Primera División", "Segunda División", "Tercera División"],
-    "Latvia": ["Primera División", "Segunda División", "Tercera División"],
-    "Italia": ["Primera División", "Segunda División", "Tercera División"],
-    "Corea del Sur": ["Primera División", "Segunda División", "Tercera División"],
-    "Panama": ["Primera División", "Segunda División", "Tercera División"],
-    "Andorra": ["Primera División", "Segunda División", "Tercera División"],
-    "Chile": ["Primera División", "Segunda División", "Tercera División"],
-    "Noruega": ["Primera División", "Segunda División", "Tercera División"],
-    "Luxemburgo": ["Primera División", "Segunda División", "Tercera División"],
-    "Venezuela": ["Primera División", "Segunda División", "Tercera División"],
-    "Ecuador": ["Primera División", "Segunda División", "Tercera División"],
+    "Espana": ["Primera Division", "Segunda Division", "Primera Federacion", "Segunda Federacion"],
+    "Inglaterra": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Marruecos": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Francia": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "China": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Portugal": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Costa Rica": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Brasil": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Argentina": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "México": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Estados Unidos": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Sahara Occidental": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Arabia Saudita": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Bolivia": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Polonia": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Egipto": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Colombia": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Paraguay": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Latvia": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Italia": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Corea del Sur": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Panama": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Andorra": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Chile": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Noruega": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Luxemburgo": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Venezuela": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Ecuador": ["Primera Division", "Segunda Division", "Tercera Division"],
 }
 
+# Country mapping with better error handling
+country_mapping = {
+    "Estados Unidos": 14,
+    "Inglaterra": 26,
+    "Marruecos": 19,
+    "Francia": 15,
+    "China": 7,
+    "Portugal": 25,
+    "Argentina": 3,
+    "Costa Rica": 10,
+    "Sahara Occidental": 27,
+    "México": 20,
+    "Brasil": 5,
+    "Arabia Saudita": 2,
+    "Eslovenia": 13,
+    "Bolivia": 4,
+    "Polonia": 23,
+    "Egipto": 12,
+    "Colombia": 8,
+    "Paraguay": 22,
+    "Latvia": 17,
+    "Italia": 16,
+    "Corea del Sur": 9,
+    "Panama": 22,
+    "Andorra": 1,
+    "Chile": 6,
+    "Noruega": 21,
+    "Luxemburgo": 18,
+    "Venezuela": 27,
+    "Ecuador": 10,
+    "Espana": 0  # Añadido España
+}
+
+# Mensajes en español sin caracteres especiales
+MESSAGES = {
+    'primera_esp': "La liga equivalente es: Primera Division",
+    'segunda_esp': "La liga equivalente es: Segunda Division",
+    'tercera_esp': "La liga equivalente es: Tercera Division",
+    'primera_fed': "La liga equivalente es: Primera Federacion",
+    'segunda_fed': "La liga equivalente es: Segunda Federacion"
+}
+
+def calculate_salary_differences(original_salaries, predicted_salaries):
+    """
+    Calcula las diferencias porcentuales entre salarios
+    Retorna el promedio de las diferencias y las diferencias individuales
+    """
+    try:
+        differences = {
+            "min_diff": ((predicted_salaries["min"] - original_salaries["min"]) / original_salaries["min"]) * 100,
+            "avg_diff": ((predicted_salaries["avg"] - original_salaries["avg"]) / original_salaries["avg"]) * 100,
+            "max_diff": ((predicted_salaries["max"] - original_salaries["max"]) / original_salaries["max"]) * 100
+        }
+        
+        # Calcular el promedio de las diferencias
+        avg_total_diff = sum(differences.values()) / len(differences)
+        
+        # Redondear todos los valores a 2 decimales
+        differences = {k: round(v, 2) for k, v in differences.items()}
+        avg_total_diff = round(avg_total_diff, 2)
+        
+        return {
+            "differences": differences,
+            "average_difference": avg_total_diff
+        }
+    except ZeroDivisionError:
+        return {
+            "differences": {"min_diff": 0, "avg_diff": 0, "max_diff": 0},
+            "average_difference": 0
+        }
 
 @app.route("/", methods=["GET", "POST"])
 def home():
     if request.method == "POST":
         try:
             data = request.json
-            country1 = data.get("country1")
-            league1 = data.get("league1")
-            country2 = data.get("country2")
+            logger.debug(f"Received data: {data}")
             
-            # Store original country2 name for salary data
-            original_country2 = country2
+            country1 = data.get("country1", "").replace("España", "Espana")
+            league1 = data.get("league1", "")
+            country2 = data.get("country2", "").replace("España", "Espana")
             
+            logger.debug(f"Processing request for: {country1}, {league1}, {country2}")
+
             # Validate input
             if not all([country1, league1, country2]):
+                logger.error("Missing required fields")
                 return jsonify({
-                    "error": "Missing required fields",
-                    "result": "Please fill in all fields"
+                    "error": "Missing data",
+                    "message": "Please provide all required fields"
                 }), 400
 
-            if country1=="United States" or country1=="Estados Unidos":
-                country=14
-            elif country1=="United Kingdom" or country1=="Inglaterra":
-                country=26
-            elif country1=="Marocco" or country1=="Marruecos":
-                country=19
-            elif country1=="France" or country1=="Francia":
-                country=15
-            elif country1=="China" or country1=="China":
-                country=7
-            elif country1=="Portugal" or country1=="Portugal":
-                country=25
-            elif country1=="Argentina" or country1=="Argentina":
-                country=3
-            elif country1=="Costa Rica" or country1=="Costa Rica":
-                country=10
-            elif country1=="Sahara Occidental" or country1=="Sahara Occidental":
-                country=27
-            elif country1=="Mexico" or country1=="México":
-                country=20
-            elif country1=="Brazil" or country1=="Brasil":
-                country=5
-            elif country1=="Saudi Arabia" or country1=="Arabia Saudita":
-                country=2
-            elif country1=="Eslovenia" or country1=="Eslovenia":
-                country=13
-            elif country1=="Bolivia" or country1=="Bolivia":
-                country=4
-            elif country1=="Poland" or country1=="Polonia":
-                country=24
-            elif country1=="Egypt" or country1=="Egipto":
-                country=12
-            elif country1=="Colombia" or country1=="Colombia":
-                country=8
-            elif country1=="Paraguay" or country1=="Paraguay":
-                country=23
-            elif country1=="Latvia" or country1=="Latvia":
-                country=17
-            elif country1=="Italy" or country1=="Italia":
-                country=16
-            elif country1=="South Korea" or country1=="Corea del Sur":
-                country=9
-            elif country1=="Panama" or country1=="Panama":
-                country=22
-            elif country1=="Andorra" or country1=="Andorra":
-                country=1
-            elif country1=="Chile" or country1=="Chile":
-                country=6
-            elif country1=="Norway" or country1=="Noruega":
-                country=21
-            elif country1=="Luxembourg" or country1=="Luxemburgo":
-                country=18
-            elif country1=="Venezuela" or country1=="Venezuela":
-                country=28
-            elif country1=="Ecuador" or country1=="Ecuador":    
-                country=11
-
-            elif country1=="Spain" or country1=="España":
-                if league1 =="La Liga":
-                    league=0
-                elif league1 =="Segunda División":
-                    league=1
-                elif league1 =="Primera Federación":
-                    league=2
-                elif league1 =="Segunda Federación":
-                    league=3
-
-           
-            if league1=="Primera División":
-                 resultNum=paisPrimeraDivisionEsp(country)    
-            elif league1=="Segunda División" and country2!="Spain":
-                 resultNum=paisSegundaDivisionEsp(country)
-            elif league1=="Tercera División":
-                 resultNum=paisTerceraDivisionEsp(country)
+            # Initialize variables
+            country = None
+            league_type = "Primera"  # default value
             
-            result_array=[]
+            country = country_mapping.get(country1)
+            if country is None:
+                logger.error(f"Invalid country: {country1}")
+                return jsonify({
+                    "error": "Invalid country",
+                    "message": f"Country not found: {country1}"
+                }), 400
 
-            if country2=="Spain" or country2=="España":
-                if resultNum==0:
-                    result="La Liga Española equivalente es: La Liga"
-                    predicted_league = "La Liga"
-                elif resultNum==1:
-                    result="La Liga Española equivalente es: Segunda División"
-                    predicted_league = "Segunda División"
-                elif resultNum==2:
-                    result="La Liga Española equivalente es: Primera Federación"
-                    predicted_league = "Primera Federación"
-                elif resultNum==3:
-                    result="La Liga Española equivalente es: Segunda Federación"
-                    predicted_league = "Segunda Federación"
+            # League type determination
+            if league1 == "Primera Division":
+                league_type = "Primera"
+            elif league1 == "Segunda Division":
+                league_type = "Segunda"
+            elif league1 in ["Tercera Division", "Primera Federacion"]:
+                league_type = "Tercera"
+            
+            try:
+                if league1 == "Primera Division" and country2 != "Espana":
+                    logger.debug(f"Processing Primera Division for country: {country}")
+                    resultNum = paisPrimeraDivisionEsp(int(country))
+                elif league1 == "Segunda Division" and country2 != "Espana":
+                    logger.debug(f"Processing Segunda Division for country: {country}")
+                    resultNum = paisSegundaDivisionEsp(int(country))
+                elif league1 in ["Tercera Division", "Primera Federacion"]:
+                    logger.debug(f"Processing Tercera Division for country: {country}")
+                    resultNum = paisTerceraDivisionEsp(int(country))
+                else:
+                    logger.error(f"Invalid league combination: {league1}, {country2}")
+                    return jsonify({
+                        "error": "Invalid league",
+                        "message": f"Invalid league combination: {league1}, {country2}"
+                    }), 400
+                
+                logger.debug(f"ResultNum after processing: {resultNum}")
+            except Exception as e:
+                logger.error(f"Neural network error: {str(e)}")
+                logger.error(traceback.format_exc())
+                return jsonify({
+                    "error": "Processing error",
+                    "message": str(e)
+                }), 500
+
+            result_array = []
+            print(resultNum)
+            print("resultNum")
+
+            if country2 == "Espana":
+                if resultNum == 0:
+                    result = MESSAGES['primera_esp']
+                    predicted_league = "Primera Division"
+                elif resultNum == 1:
+                    result = MESSAGES['segunda_esp']
+                    predicted_league = "Segunda Division"
+                elif resultNum == 2:
+                    result = MESSAGES['primera_fed']
+                    predicted_league = "Primera Federacion"
+                elif resultNum == 3:
+                    result = MESSAGES['segunda_fed']
+                    predicted_league = "Segunda Federacion"
             else: 
-                    if country2=="United States" or country2=="Estados Unidos":
-                        country2=13
-                    elif country2=="England" or country2=="Inglaterra":
-                        country2=25
-                    elif country2=="England" or country2=="Inglaterra":
-                        country2=25
-                    elif country2=="Marocco" or country2=="Marruecos":
-                        country2=18
-                    elif country2=="France" or country2=="Francia":
-                        country2=14
-                    elif country2=="China" or country2=="China":
-                        country2=6
-                    elif country2=="Portugal" or country2=="Portugal":
-                        country2=24
-                    elif country2=="Argentina" or country2=="Argentina":
-                        country2=2
-                    elif country2=="Costa Rica" or country2=="Costa Rica":
-                        country2=9
-                    elif country2=="Sahara Occidental" or country2=="Sahara Occidental":
-                        country2=26
-                    elif country2=="Mexico" or country2=="México":
-                        country2=19
-                    elif country2=="Brazil" or country2=="Brasil":
-                        country2=4
-                    
-                    elif country2=="Saudi Arabia" or country2=="Arabia Saudita":
-                        country2=1
-                    
-                    elif country2=="Bolivia" or country2=="Bolivia":
-                        country2=3
-                    elif country2=="Poland" or country2=="Polonia":
-                        country=23
-                    elif country2=="Egypt" or country2=="Egipto":
-                        country2=11
-                    elif country2=="Colombia" or country2=="Colombia":
-                        country2=7
-                    elif country2=="Paraguay" or country2=="Paraguay":
-                        country2=22
-                    elif country2=="Latvia" or country2=="Latvia":
-                        country2=16
-                    elif country2=="Italy" or country2=="Italia":
-                        country2=15
-                    elif country2=="South Korea" or country2=="Corea del Sur":
-                        country2=8
-                    elif country2=="Panama" or country2=="Panama":
-                        country2=21
-                    elif country2=="Andorra" or country2=="Andorra":
-                        country2=0
-                    elif country2=="Chile" or country2=="Chile":
-                        country2=5
-                    elif country2=="Norway" or country2=="Noruega":
-                        country2=20
-                    elif country2=="Luxembourg" or country2=="Luxemburgo":
-                        country2=17
-                    elif country2=="Venezuela" or country2=="Venezuela":
-                        country2=27
-                    elif country2=="Ecuador" or country2=="Ecuador":
-                        country2=10
+                if country2 == "United States" or country2 == "Estados Unidos":
+                    country2 = 13
+                elif country2 == "England" or country2 == "Inglaterra":
+                    country2 = 25
+                elif country2 == "Marocco" or country2 == "Marruecos":
+                    country2 = 18
+                elif country2 == "France" or country2 == "Francia":
+                    country2 = 14
+                elif country2 == "China" or country2 == "China":
+                    country2 = 6
+                elif country2 == "Portugal" or country2 == "Portugal":
+                    country2 = 24
+                elif country2 == "Argentina" or country2 == "Argentina":
+                    country2 = 2
+                elif country2 == "Costa Rica" or country2 == "Costa Rica":
+                    country2 = 9
+                elif country2 == "Sahara Occidental" or country2 == "Sahara Occidental":
+                    country2 = 26
+                elif country2 == "Mexico" or country2 == "México":
+                    country2 = 19
+                elif country2 == "Brazil" or country2 == "Brasil":
+                    country2 = 4
                 
-
-                    resultNum21=ligaPaisPrimera(resultNum,country2)
-                    result_array.append(resultNum21)
-                    resultNum22=ligaPaisSegunda(resultNum,country2)
-                    result_array.append(resultNum22)
-                    resultNum23=ligaPaisTercera(resultNum,country2)
-                    result_array.append(resultNum23)
-                    print(result_array)
-                    indice=0
-                    for i in range(0,len(result_array)-1,1):
-                        if result_array[i]>result_array[i+1] and i <len(result_array)-1:
-                            indice=i
-                            
-                        
-                    if indice==0:
-                        result="La Liga equivalente es: Primera División"
-                        predicted_league = "Primera División"
-                    elif indice==1:
-                        result="La Liga equivalente es: Segunda División"
-                        predicted_league = "Segunda División"
-                    elif indice==2: 
-                        result="La Liga equivalente es: Tercera División"
-                        predicted_league = "Tercera División"
+                elif country2 == "Saudi Arabia" or country2 == "Arabia Saudita":
+                    country2 = 1
                 
+                elif country2 == "Bolivia" or country2 == "Bolivia":
+                    country2 = 3
+                elif country2 == "Poland" or country2 == "Polonia":
+                    country = 23
+                elif country2 == "Egypt" or country2 == "Egipto":
+                    country2 = 11
+                elif country2 == "Colombia" or country2 == "Colombia":
+                    country2 = 7
+                elif country2 == "Paraguay" or country2 == "Paraguay":
+                    country2 = 22
+                elif country2 == "Latvia" or country2 == "Latvia":
+                    country2 = 16
+                elif country2 == "Italy" or country2 == "Italia":
+                    country2 = 15
+                elif country2 == "South Korea" or country2 == "Corea del Sur":
+                    country2 = 8
+                elif country2 == "Panama" or country2 == "Panama":
+                    country2 = 21
+                elif country2 == "Andorra" or country2 == "Andorra":
+                    country2 = 0
+                elif country2 == "Chile" or country2 == "Chile":
+                    country2 = 5
+                elif country2 == "Norway" or country2 == "Noruega":
+                    country2 = 20
+                elif country2 == "Luxembourg" or country2 == "Luxemburgo":
+                    country2 = 17
+                elif country2 == "Venezuela" or country2 == "Venezuela":
+                    country2 = 27
+                elif country2 == "Ecuador" or country2 == "Ecuador":
+                    country2 = 10
+            
+                resultNum21 = ligaPaisPrimera(resultNum, country2)
+                result_array.append(resultNum21)
+                resultNum22 = ligaPaisSegunda(resultNum, country2)
+                result_array.append(resultNum22)
+                resultNum23 = ligaPaisTercera(resultNum, country2)
+                result_array.append(resultNum23)
+                print(result_array)
+                indice = 0
+                for i in range(0, len(result_array) - 1, 1):
+                    if result_array[i] > result_array[i + 1] and i < len(result_array) - 1:
+                        indice = i
                 
+                if indice == 0:
+                    result = MESSAGES['primera_esp']
+                    predicted_league = "Primera Division"
+                elif indice == 1:
+                    result = MESSAGES['segunda_esp']
+                    predicted_league = "Segunda Division"
+                elif indice == 2: 
+                    result = MESSAGES['tercera_esp']
+                    predicted_league = "Tercera Division"
             
-            
-        
-            
-        
-            
-            # Lógica para la comparación
-           
-            # Add salary information to the response
+            # Create response
             try:
                 salary_info = {}
-                
-                # Get salary data for original league
                 if country1 in salary_data:
-                    league_type = "Primera" if "Primera" in league1 else "Segunda" if "Segunda" in league1 else "Tercera"
+                    original_salaries = salary_data[country1][league_type]
                     salary_info["original"] = {
                         "country": country1,
                         "league": league1,
-                        "salaries": salary_data[country1][league_type]
+                        "salaries": original_salaries
                     }
                 
-                # Use original_country2 instead of country2 for salary data
-                if original_country2 in salary_data:
+                country2_name = country2
+                if isinstance(country2, int):
+                    reverse_mapping = {v: k for k, v in country_mapping.items()}
+                    country2_name = reverse_mapping.get(country2, country2)
+                
+                if country2_name in salary_data:
                     predicted_type = "Primera" if "Primera" in predicted_league else "Segunda" if "Segunda" in predicted_league else "Tercera"
+                    predicted_salaries = salary_data[country2_name][predicted_type]
                     salary_info["predicted"] = {
-                        "country": original_country2,
+                        "country": country2_name,
                         "league": predicted_league,
-                        "salaries": salary_data[original_country2][predicted_type]
+                        "salaries": predicted_salaries
                     }
+                    
+                    # Calcular diferencias salariales
+                    if "original" in salary_info:
+                        salary_differences = calculate_salary_differences(
+                            original_salaries,
+                            predicted_salaries
+                        )
+                        salary_info["differences"] = salary_differences
+                        
+                        # Añadir mensaje interpretativo
+                        diff = salary_differences["average_difference"]
+                        if diff > 0:
+                            salary_info["comparison_message"] = f"Los salarios en la liga equivalente son en promedio {abs(diff)}% mayores"
+                        elif diff < 0:
+                            salary_info["comparison_message"] = f"Los salarios en la liga equivalente son en promedio {abs(diff)}% menores"
+                        else:
+                            salary_info["comparison_message"] = "Los salarios son similares en ambas ligas"
 
-                response = {
+                response_data = {
                     "result": result,
                     "original_league": league1,
                     "predicted_league": predicted_league,
                     "salary_info": salary_info
                 }
-            except Exception as e:
-                print(f"Error processing salary data: {str(e)}")  # For debugging
-                response = {
-                    "result": result,
-                    "original_league": league1,
-                    "predicted_league": predicted_league
-                }
 
-            return jsonify(response)
+                logger.debug(f"Response data: {response_data}")
+                return jsonify(response_data)
+
+            except Exception as e:
+                logger.error(f"Error creating response: {str(e)}")
+                logger.error(traceback.format_exc())
+                return jsonify({
+                    "error": "Response error",
+                    "message": str(e)
+                }), 500
 
         except Exception as e:
-            print(f"Server error: {str(e)}")  # For debugging
+            error_msg = str(e).encode('ascii', 'ignore').decode('ascii')
             return jsonify({
                 "error": "Server error",
-                "result": "An error occurred while processing your request"
+                "message": error_msg
             }), 500
-    
+
     return render_template("index.html", countries=countries)
 
-if __name__ == "__main__":
-    app.run()
+if __name__ == '__main__':
+    app.run(debug=True)

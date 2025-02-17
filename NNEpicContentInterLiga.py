@@ -1,109 +1,130 @@
 import numpy as np
-from tensorflow.keras.models import Model,load_model
+from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Input, Dense, multiply
 from tensorflow.keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
+import os
 
 def paisPrimeraDivisionEsp(eleccionpais):
-    metric = np.array([
-    [14], [26], [19], [15], [7], [25], [3], [25], [25], [3], [20], [10], 
-            [19], [20], [27], [7], [5], [25], [5], [2], [13], [7], [4], [25], 
-            [24], [25], [3], [26], [12], [20], [26], [25], [8], [23],  [14], 
-            [17], [7], [7], [26], [16], [9], [3], [26], [22], [7], [14], [25], 
-            [15], [7], [6], [1], [14], [20], [8], [21], [25], [18], [28], [11], [20]
-    ])
-
-    labels = np.array([
-        1, 0, 2, 0, 2, 0, 0, 0, 2, 0, 0, 2, 2, 1, 4, 2, 1, 1, 1, 3, 1, 2, 2, 1, 2, 
-        1, 1, 0, 1, 0, 0, 2, 2, 1,  1, 4, 2, 2, 0, 0, 3, 1, 2, 2, 3, 3, 0, 0, 2, 
-        2, 2, 1, 0, 1, 2, 0, 2, 1, 2, 1
-    ])
-
-    # Convertir etiquetas a categorías
-    labels = to_categorical(labels, num_classes=5)
-    print(labels)
-    metric_train, metric_test, labels_train, labels_test = train_test_split(metric, labels, test_size=0.2, random_state=42)
-    model_path = 'modelo_primera_division.h5'
     try:
-        model = load_model(model_path)
-        print("Modelo cargado desde el disco.")
-    except:
-        print("Entrenando un nuevo modelo...")
-        seo_input = Input(shape=(metric.shape[1],), name='seo_input')
-        dense_1 = Dense(64, activation='relu')(seo_input)
-        dense_2 = Dense(64, activation='relu')(dense_1)
-        output = Dense(5, activation='softmax')(dense_2)
-
-        model = Model(inputs=seo_input, outputs=output)
-        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-
-        # Entrenar el modelo
-        #model.fit(metric_train, labels_train, epochs=9000, batch_size=2, verbose=1)
-        model.fit(metric, labels, epochs=9000, batch_size=2)
-        model.save(model_path)
-    loss, accuracy = model.evaluate(metric_test, labels_test, verbose=0)
-    print(f"Precisión del modelo en los datos de prueba: {accuracy:.2f}{loss}")
+        eleccionpais = int(eleccionpais)
+        print(f"Processing country: {eleccionpais}")
         
-        # Predicción
-    new_metrics = np.array([[eleccionpais]])  # Asegurar que sea 2D
-    pred1 = model.predict(new_metrics)
-    print(pred1)
+        model_path = 'modelo_primera_division.h5'
+        if not os.path.exists(model_path):
+            print(f"Model file not found: {model_path}")
+            # Si el modelo no existe, lo creamos
+            metric = np.array([
+                [14], [26], [19], [15], [7], [25], [3], [25], [25], [3], [20], [10], 
+                [19], [20], [27], [7], [5], [25], [5], [2], [13], [7], [4], [25], 
+                [24], [25], [3], [26], [12], [20], [26], [25], [8], [23], [14], 
+                [17], [7], [7], [26], [16], [9], [3], [26], [22], [7], [14], [25], 
+                [15], [7], [6], [1], [14], [20], [8], [21], [25], [18], [28], [11], [20]
+            ])
 
-    data=pred1[0]
-    liga=0
+            labels = np.array([
+                1, 0, 2, 0, 2, 0, 0, 0, 2, 0, 0, 2, 2, 1, 4, 2, 1, 1, 1, 3, 1, 2, 2, 1, 2, 
+                1, 1, 0, 1, 0, 0, 2, 2, 1, 1, 4, 2, 2, 0, 0, 3, 1, 2, 2, 3, 3, 0, 0, 2, 
+                2, 2, 1, 0, 1, 2, 0, 2, 1, 2, 1
+            ])
 
-    data=pred1[0]
-    max_valor=np.max(data)
-    liga=np.argmax(data)
-    print(liga)
-    return liga
+            labels = to_categorical(labels, num_classes=5)
+            model = create_and_train_model(metric, labels, metric.shape[1], 5, epochs=1000)
+            model.save(model_path)
+            print("New model created and saved")
 
+        try:
+            model = load_model(model_path)
+            model.compile(
+                optimizer='adam',
+                loss='categorical_crossentropy',
+                metrics=['accuracy']
+            )
+            print("Model loaded successfully")
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            raise
+
+        new_metrics = np.array([[eleccionpais]], dtype=np.int32)
+        pred1 = model.predict(new_metrics, verbose=0)
+        liga = np.argmax(pred1[0])
+        print(f"Prediction result: {liga}")
+        return liga
+
+    except Exception as e:
+        print(f"Error in paisPrimeraDivisionEsp: {str(e)}")
+        raise
+
+def create_and_train_model(input_data, labels, input_shape, num_classes, epochs=1000):
+    """Helper function to create and train a model with consistent architecture"""
+    seo_input = Input(shape=(input_shape,), name='seo_input')
+    dense_1 = Dense(64, activation='relu')(seo_input)
+    dense_2 = Dense(64, activation='relu')(dense_1)
+    output = Dense(num_classes, activation='softmax')(dense_2)
+    
+    model = Model(inputs=seo_input, outputs=output)
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    
+    model.fit(input_data, labels, epochs=epochs, batch_size=2, verbose=0)
+    return model
 
 def paisSegundaDivisionEsp(eleccion_pais):
-    metric = np.array([
-    [14], [26], [19], [15], [7], [25], [3], [25], [25], [3], [20], [10], 
+    try:
+        eleccion_pais = int(eleccion_pais)
+        print(f"Processing country value: {eleccion_pais}, type: {type(eleccion_pais)}")
+        
+        metric = np.array([
+            [14], [26], [19], [15], [7], [25], [3], [25], [25], [3], [20], [10], 
             [19], [20], [27], [7], [5], [25], [5], [2], [13], [7], [4],[25], 
             [24], [25], [3], [26], [12], [20], [26], [25], [8], [23], [3], [14], 
             [17], [7], [7], [26], [16], [9], [3], [26], [22], [7], [25], 
             [15], [7], [6], [1], [14], [20], [8], [21], [25], [18], [28], [11], [20]
-    ])
+        ])
 
-    labels = np.array([
-        0, 1, 2, 1, 3, 1, 1, 0, 0, 1, 0, 2, 1, 0, 3, 2, 1, 1, 0, 3, 0, 3, 3, 0, 0, 0, 1, 1, 3, 1, 4, 0, 2, 0, 2, 0, 3, 3, 2, 1, 4, 3, 0, 0, 3, 3, 0, 1, 2, 2, 1, 2, 0, 0, 2, 1, 2, 0, 3, 1
+        labels = np.array([
+            0, 1, 2, 1, 3, 1, 1, 0, 0, 1, 0, 2, 1, 0, 3, 2, 1, 1, 0, 3, 0, 3, 3, 0, 0, 0, 1, 1, 3, 1, 4, 0, 2, 0, 2, 0, 3, 3, 2, 1, 4, 3, 0, 0, 3, 3, 0, 1, 2, 2, 1, 2, 0, 0, 2, 1, 2, 0, 3, 1
+        ])
 
-    ])
+        # Convertir etiquetas a categorías
+        labels = to_categorical(labels, num_classes=5)
+        print(metric.shape[1])
+        model_path = 'modelo_segunda2_division.h5'
+        try:
+            model = load_model(model_path)
+            # Recompile model with metrics
+            model.compile(
+                optimizer='adam',
+                loss='categorical_crossentropy',
+                metrics=['accuracy']
+            )
+            print("Model loaded from disk")
+        except:
+            print("Training new model...")
+            seo_input = Input(shape=(metric.shape[1],), name='seo_input')
+            dense_1 = Dense(64, activation='relu')(seo_input)
+            dense_2 = Dense(64, activation='relu')(dense_1)
+            output = Dense(5, activation='softmax')(dense_2)
 
-    # Convertir etiquetas a categorías
-    labels = to_categorical(labels, num_classes=5)
-    print(metric.shape[1])
-    model_path = 'modelo_segunda2_division.h5'
-    try:
-        model = load_model(model_path)
-        print("Modelo cargado desde el disco.")
-    # Construir el modelo
-    except:
-        seo_input = Input(shape=(metric.shape[1],), name='seo_input')
-        dense_1 = Dense(64, activation='relu')(seo_input)
-        dense_2 = Dense(64, activation='relu')(dense_1)
-        output = Dense(5, activation='softmax')(dense_2)
+            model = Model(inputs=seo_input, outputs=output)
+            model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-        model = Model(inputs=seo_input, outputs=output)
-        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+            # Entrenar el modelo
+            model.fit(metric, labels, epochs=9900, batch_size=2)
+            model.save(model_path)
+        
+        # Predicción
+        new_metrics = np.array([[eleccion_pais]], dtype=np.int32)
+        pred1 = model.predict(new_metrics, verbose=0)
+        
+        data = pred1[0]
+        liga = np.argmax(data)
+        print(f"Selected liga: {liga}")
+        return liga
 
-        # Entrenar el modelo
-        model.fit(metric, labels, epochs=9900, batch_size=2)
-        model.save(model_path)
-    
-    # Predicción
-    new_metrics = np.array([[eleccion_pais]])  # Asegurar que sea 2D
-    pred1 = model.predict(new_metrics)
-    print(pred1)
-
-    data=pred1[0]
-    max_valor=np.max(data)
-    liga=np.argmax(data)
-    print(liga)
-    return liga
+    except Exception as e:
+        print(f"Error in paisSegundaDivisionEsp: {str(e)}")
+        print(f"Input value was: {eleccion_pais}, type: {type(eleccion_pais)}")
+        raise
 
 def paisTerceraDivisionEsp(eleccion_pais):
     metric = np.array([
@@ -126,9 +147,10 @@ def paisTerceraDivisionEsp(eleccion_pais):
     model_path = 'modelo_tercera_division.h5'
     try:
         model = load_model(model_path)
-        print("Modelo cargado desde el disco.")
+        print("Model loaded from disk")
     # Construir el modelo
     except:
+        print("Training new model...")
         seo_input = Input(shape=(metric.shape[1],), name='seo_input')
         dense_1 = Dense(128, activation='relu')(seo_input)
         dense_2 = Dense(128, activation='relu')(dense_1)
@@ -141,7 +163,7 @@ def paisTerceraDivisionEsp(eleccion_pais):
         model.fit(metric, labels, epochs=9000, batch_size=2)
         model.save(model_path)
     loss, accuracy = model.evaluate(metric_test, labels_test, verbose=0)
-    print(f"Precisión del modelo en los datos de prueba: {accuracy:.2f}{loss}")
+    print(f"Model accuracy: {accuracy:.2f}, loss: {loss}")
     
     # Predicción
     new_metrics = np.array([[eleccion_pais]])  # Asegurar que sea 2D
@@ -152,6 +174,8 @@ def paisTerceraDivisionEsp(eleccion_pais):
     max_valor=np.max(data)
     liga=np.argmax(data)
     print(liga)
+    if isinstance(liga, str):
+        return liga.encode('utf-8').decode('utf-8')
     return liga
 
 listDivision=[]
@@ -171,10 +195,10 @@ def ligaPaisPrimera(liga,ligaDestino):
     model_path = 'modelo_primera_liga.h5'
     try:
         model2 = load_model(model_path)
-        print("Modelo cargado desde el disco.")
+        print("Model loaded from disk")
     # Construir el modelo
     except:
-
+        print("Training new model...")
     # Construir el modelo
         seo_input2 = Input(shape=(ligas.shape[1],), name='seo_input')
         dense_12 = Dense(560, activation='relu')(seo_input2)
@@ -204,6 +228,8 @@ def ligaPaisPrimera(liga,ligaDestino):
     data2=pred2[0]
     print(data2)
     print(data2[ligaDestino-1])
+    if isinstance(data2[ligaDestino-1], str):
+        return data2[ligaDestino-1].encode('utf-8').decode('utf-8')
     return data2[ligaDestino-1]
 
 
@@ -237,10 +263,11 @@ def ligaPaisSegunda(liga,ligaDestino):
     model_path = 'modelo_segunda_liga.h5'
     try:
         model2 = load_model(model_path)
-        print("Modelo cargado desde el disco.")
+        print("Model loaded from disk")
     # Construir el modelo
     except:
     # Construir el modelo
+        print("Training new model...")
         seo_input2 = Input(shape=(ligas.shape[1],), name='seo_input')
         dense_12 = Dense(560, activation='relu')(seo_input2)
         attention = Dense(560, activation='softmax', name='attention_weights')(dense_12)
@@ -302,9 +329,10 @@ def ligaPaisTercera(liga,ligaDestino):
     model_path = 'modelo_tercera_liga.h5'
     try:
         model2 = load_model(model_path)
-        print("Modelo cargado desde el disco.")
+        print("Model loaded from disk")
     # Construir el modelo
     except:
+        print("Training new model...")
         seo_input2 = Input(shape=(ligas.shape[1],), name='seo_input')
         dense_12 = Dense(560, activation='relu')(seo_input2)
         attention = Dense(560, activation='softmax', name='attention_weights')(dense_12)
@@ -324,7 +352,7 @@ def ligaPaisTercera(liga,ligaDestino):
         model2.fit(ligas, paises, epochs=6000, batch_size=2)
         model2.save(model_path)
     loss, accuracy = model2.evaluate(ligas_test, paises_test, verbose=0)
-    print(f"Precisión del modelo en los datos de prueba: {accuracy:.2f}{loss}")
+    print(f"Model accuracy: {accuracy:.2f}, loss: {loss}")
 
     new_metrics2 = np.array([[liga]])  # Asegurar que sea 2D
     pred2 = model2.predict(new_metrics2)
@@ -363,11 +391,6 @@ def ligaUniversal(liga,ligaDestino):
 18, 19, 26, 6, 4, 24, 4, 1, 12, 6, 3, 24,
 23, 24, 2, 25, 11, 19, 25, 24, 7, 22, 2, 13,
 16, 6, 6, 25, 15, 8, 2, 25, 21, 6, 24,
-14, 6, 5, 0, 13, 19, 7, 20, 24, 17, 27, 10, 
-19, 13, 25, 18, 14, 6, 24, 2, 24, 24, 2, 19, 9,
-18, 19, 26, 6, 4, 24, 4, 1, 12, 6, 3, 24,
-23, 24, 2, 25, 19, 25, 24, 7, 22, 13,
-16, 6, 6, 25, 15, 2, 25, 21, 6, 24,
 14, 6, 5, 0, 13, 19, 7, 20, 24, 17, 27, 10,
 19])
     paises = to_categorical(paises, num_classes=138)

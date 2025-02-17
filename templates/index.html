@@ -34,6 +34,31 @@
             font-weight: bold;
             color: #007bff;
         }
+        /* Estilos para las diferencias salariales */
+        .salary-diff {
+            font-weight: bold;
+        }
+        .salary-diff.positive {
+            color: #28a745;
+        }
+        .salary-diff.negative {
+            color: #dc3545;
+        }
+        .spinner-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner-text {
+            margin-top: 10px;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
     </style>
 </head>
 <body>
@@ -77,25 +102,31 @@
                 <!-- Submit Button -->
                 <button type="button" class="btn btn-primary" onclick="compareLeagues()">Comparar</button>
             </form>
-,
             <!-- Result -->
             <div id="result-container">
                 <p id="result"></p>
                 <div id="salary-info" style="display: none;">
-                    <h3>Salary Information:</h3>
+                    <h3>Información de Salarios:</h3>
                     <div id="original-league">
-                        <h4>Original League</h4>
-                        <p>Minimum: €<span id="original-min"></span></p>
-                        <p>Average: €<span id="original-avg"></span></p>
-                        <p>Maximum: €<span id="original-max"></span></p>
+                        <h4>Liga Original</h4>
+                        <p>Mínimo: €<span id="original-min"></span></p>
+                        <p>Promedio: €<span id="original-avg"></span></p>
+                        <p>Máximo: €<span id="original-max"></span></p>
                     </div>
                     <div id="predicted-league">
-                        <h4>Predicted League</h4>
-                        <p>Minimum: €<span id="predicted-min"></span></p>
-                        <p>Average: €<span id="predicted-avg"></span></p>
-                        <p>Maximum: €<span id="predicted-max"></span></p>
+                        <h4>Liga Equivalente</h4>
+                        <p>Mínimo: €<span id="predicted-min"></span></p>
+                        <p>Promedio: €<span id="predicted-avg"></span></p>
+                        <p>Máximo: €<span id="predicted-max"></span></p>
                     </div>
                 </div>
+            </div>
+            <!-- Primero, añade el HTML del spinner después del botón de comparar -->
+            <div id="loading-spinner" class="spinner-container" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="spinner-text">Procesando resultados...</p>
             </div>
         </div>
     </div>
@@ -103,8 +134,15 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const countries = {{ countries|tojson }};
+        // Use safe JSON parsing for the countries data
+        const countries = JSON.parse('{{ countries|tojson|safe }}');
         
+        // Add error handling for countries data
+        if (!countries) {
+            console.error('Countries data not loaded properly');
+        } else {
+            console.log('Countries loaded:', countries);
+        }
         // Populate leagues based on the selected country
         function populateLeagues(countryId, leagueId) {
             const country = document.getElementById(countryId).value;
@@ -121,37 +159,65 @@
             }
         }
 
+        function sanitizeString(str) {
+            return str.normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g, '')
+                      .replace('ñ', 'n')
+                      .replace('Ñ', 'N');
+        }
+
         // Compare leagues
         async function compareLeagues() {
             try {
-                const data = {
-                    country1: document.getElementById("country1").value,
-                    league1: document.getElementById("league1").value,
-                    country2: document.getElementById("country2").value
-                };
+                const country1 = document.getElementById("country1").value;
+                const league1 = document.getElementById("league1").value;
+                const country2 = document.getElementById("country2").value;
 
-                // Validate input
-                if (!data.country1 || !data.league1 || !data.country2) {
-                    document.getElementById('result').textContent = "Please fill in all fields";
+                if (!country1 || !league1 || !country2) {
+                    document.getElementById('result').textContent = "Por favor, complete todos los campos";
                     document.getElementById('salary-info').style.display = 'none';
                     return;
                 }
 
+                // Mostrar spinner y ocultar resultados anteriores
+                document.getElementById('loading-spinner').style.display = 'block';
+                document.getElementById('result').textContent = '';
+                document.getElementById('salary-info').style.display = 'none';
+
+                const requestData = {
+                    country1: sanitizeString(country1),
+                    league1: sanitizeString(league1)
+                            .replace("Division", "Division")
+                            .replace("Federacion", "Federacion"),
+                    country2: sanitizeString(country2)
+                };
+
+                console.log("Sending request with data:", requestData);
+
                 const response = await fetch("/", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(data),
+                    headers: { 
+                        "Content-Type": "application/json; charset=utf-8",
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify(requestData)
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                const result = await response.json();
+                
+                // Ocultar spinner antes de mostrar resultados
+                document.getElementById('loading-spinner').style.display = 'none';
+                
+                if (!response.ok || result.error) {
+                    throw new Error(result.message || result.error || 'Error desconocido');
                 }
 
-                const result = await response.json();
                 handleResponse(result);
             } catch (error) {
+                // Ocultar spinner en caso de error
+                document.getElementById('loading-spinner').style.display = 'none';
                 console.error('Error:', error);
-                document.getElementById('result').textContent = "An error occurred while processing your request";
+                document.getElementById('result').textContent = `Error: ${error.message}`;
                 document.getElementById('salary-info').style.display = 'none';
             }
         }
@@ -164,24 +230,60 @@
                 return;
             }
 
+            // Mostrar el resultado
             document.getElementById('result').textContent = response.result;
             
-            const salaryInfo = response.salary_info;
-            if (salaryInfo) {
+            // Mostrar información de salarios
+            if (response.salary_info) {
                 document.getElementById('salary-info').style.display = 'block';
                 
-                if (salaryInfo.original) {
-                    document.getElementById('original-league-name').textContent = response.original_league;
-                    document.getElementById('original-min').textContent = salaryInfo.original.salaries.min.toLocaleString();
-                    document.getElementById('original-avg').textContent = salaryInfo.original.salaries.avg.toLocaleString();
-                    document.getElementById('original-max').textContent = salaryInfo.original.salaries.max.toLocaleString();
+                // Actualizar salarios de la liga original
+                if (response.salary_info.original) {
+                    document.getElementById('original-league').style.display = 'block';
+                    document.getElementById('original-min').textContent = response.salary_info.original.salaries.min.toLocaleString();
+                    document.getElementById('original-avg').textContent = response.salary_info.original.salaries.avg.toLocaleString();
+                    document.getElementById('original-max').textContent = response.salary_info.original.salaries.max.toLocaleString();
+                } else {
+                    document.getElementById('original-league').style.display = 'none';
                 }
                 
-                if (salaryInfo.predicted) {
-                    document.getElementById('predicted-league-name').textContent = response.predicted_league;
-                    document.getElementById('predicted-min').textContent = salaryInfo.predicted.salaries.min.toLocaleString();
-                    document.getElementById('predicted-avg').textContent = salaryInfo.predicted.salaries.avg.toLocaleString();
-                    document.getElementById('predicted-max').textContent = salaryInfo.predicted.salaries.max.toLocaleString();
+                // Actualizar salarios de la liga predicha
+                if (response.salary_info.predicted) {
+                    document.getElementById('predicted-league').style.display = 'block';
+                    document.getElementById('predicted-min').textContent = response.salary_info.predicted.salaries.min.toLocaleString();
+                    document.getElementById('predicted-avg').textContent = response.salary_info.predicted.salaries.avg.toLocaleString();
+                    document.getElementById('predicted-max').textContent = response.salary_info.predicted.salaries.max.toLocaleString();
+                } else {
+                    document.getElementById('predicted-league').style.display = 'none';
+                }
+
+                // Añadir información de diferencias
+                if (response.salary_info.differences) {
+                    const differences = response.salary_info.differences;
+                    const differencesHtml = `
+                        <div id="salary-differences">
+                            <h4>Comparación de Salarios</h4>
+                            <p>${response.salary_info.comparison_message}</p>
+                            <p>Diferencias porcentuales:</p>
+                            <ul>
+                                <li>Salario mínimo: <span class="salary-diff ${differences.differences.min_diff >= 0 ? 'positive' : 'negative'}">${differences.differences.min_diff}%</span></li>
+                                <li>Salario promedio: <span class="salary-diff ${differences.differences.avg_diff >= 0 ? 'positive' : 'negative'}">${differences.differences.avg_diff}%</span></li>
+                                <li>Salario máximo: <span class="salary-diff ${differences.differences.max_diff >= 0 ? 'positive' : 'negative'}">${differences.differences.max_diff}%</span></li>
+                            </ul>
+                        </div>
+                    `;
+                    
+                    // Eliminar diferencias anteriores si existen
+                    const oldDiff = document.getElementById('salary-differences');
+                    if (oldDiff) {
+                        oldDiff.remove();
+                    }
+                    
+                    // Insertar nuevas diferencias
+                    const salaryInfo = document.getElementById('salary-info');
+                    const diffDiv = document.createElement('div');
+                    diffDiv.innerHTML = differencesHtml;
+                    salaryInfo.appendChild(diffDiv);
                 }
             } else {
                 document.getElementById('salary-info').style.display = 'none';
