@@ -6,127 +6,509 @@
     <title>League Comparator</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --background-color: #f8fafc;
+            --card-background: #ffffff;
+            --text-color: #1e293b;
+            --border-radius: 12px;
+            --box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
         body {
-            background-color: #f8f9fa;
-            padding: 20px;
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
         }
+
         .form-container {
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            max-width: 600px;
-            margin: 0 auto;
+            background: var(--card-background);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 2rem;
+            max-width: 800px;
+            margin: 2rem auto;
+            transition: transform 0.3s ease;
         }
+
+        .form-container:hover {
+            transform: translateY(-5px);
+        }
+
         .form-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 2rem;
             text-align: center;
-            margin-bottom: 20px;
-            color: #333;
         }
+
+        .form-select, .form-control {
+            border-radius: var(--border-radius);
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .form-select:focus, .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+        }
+
         .btn-primary {
-            width: 100%;
+            background-color: var(--primary-color);
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
-        #result {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #007bff;
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
         }
-        /* Estilos para las diferencias salariales */
-        .salary-diff {
-            font-weight: bold;
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
         }
-        .salary-diff.positive {
-            color: #28a745;
+
+        .league-card {
+            background: var(--card-background);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: var(--box-shadow);
         }
-        .salary-diff.negative {
-            color: #dc3545;
+
+        .league-card h4 {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
         }
-        .spinner-container {
-            text-align: center;
-            margin: 20px 0;
+
+        .salary-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            background: #f8fafc;
+            border-radius: 8px;
         }
-        
-        .spinner-text {
-            margin-top: 10px;
-            color: #6c757d;
+
+        .salary-stat span {
             font-weight: 500;
         }
-        
+
+        .salary-diff {
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .salary-diff.positive {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .salary-diff.negative {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .spinner-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 2rem 0;
+        }
+
         .spinner-border {
             width: 3rem;
             height: 3rem;
+            color: var(--primary-color);
+        }
+
+        .spinner-text {
+            margin-top: 1rem;
+            color: var(--text-color);
+            font-weight: 500;
+        }
+
+        #result {
+            text-align: center;
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: #f0f9ff;
+            border-radius: var(--border-radius);
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        .comparison-message {
+            text-align: center;
+            padding: 1rem;
+            margin: 1rem 0;
+            background: #f0f9ff;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+        }
+
+        /* Animaciones */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .form-container {
+                margin: 1rem;
+                padding: 1.5rem;
+            }
+
+            .form-title {
+                font-size: 2rem;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Estilos para la sección de instrucciones */
+        .instructions-container {
+            background: #f8fafc;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        .instructions-header {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .instructions-header h2 {
+            color: var(--primary-color);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .instruction-step {
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-left: 2.5rem;
+        }
+
+        .step-number {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1.8rem;
+            height: 1.8rem;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .instruction-features {
+            list-style: none;
+            padding-left: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .instruction-features li {
+            margin-bottom: 0.5rem;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+        }
+
+        .instruction-features li i {
+            color: var(--primary-color);
+            width: 1.5rem;
+        }
+
+        #instructions-chevron {
+            transition: transform 0.3s ease;
+        }
+
+        #instructions-chevron.rotated {
+            transform: rotate(180deg);
+        }
+
+        #instructions-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        #instructions-content.show {
+            max-height: 1000px;
+            transition: max-height 0.5s ease-in;
+        }
+
+        /* Ajustes responsive para las instrucciones */
+        @media (max-width: 768px) {
+            .instructions-container {
+                padding: 1rem;
+            }
+
+            .instruction-step {
+                padding-left: 2rem;
+            }
+        }
+
+        /* Estilos para la sección de metodología */
+        .methodology-section {
+            background: rgba(37, 99, 235, 0.05);
+            border-radius: 8px;
+            padding: 1.25rem;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .methodology-section h3 {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .methodology-content p {
+            color: var(--text-color);
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+
+        .methodology-features {
+            list-style: none;
+            padding-left: 0;
+            margin-bottom: 0;
+        }
+
+        .methodology-features li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-color);
+        }
+
+        .methodology-features li:last-child {
+            margin-bottom: 0;
+        }
+
+        .methodology-features i {
+            color: var(--primary-color);
+            width: 1.5rem;
+            font-size: 1rem;
+        }
+
+        /* Ajuste responsive para la metodología */
+        @media (max-width: 768px) {
+            .methodology-section {
+                padding: 1rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="form-container">
-            <h1 class="form-title">Comparador de Ligas</h1>
-            <form id="compare-form">
-                <!-- First Country -->
-                <div class="mb-3">
-                    <label for="country1" class="form-label">Selecciona el Primer País:</label>
-                    <select id="country1" class="form-select" onchange="populateLeagues('country1', 'league1')">
-                        <option value="">Selecciona un País</option>
-                        {% for country in countries.keys() %}
-                            <option value="{{ country }}">{{ country }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+            <h1 class="form-title">
+                <i class="fas fa-futbol me-2"></i>
+                Comparador de Ligas
+            </h1>
 
-                <!-- First League -->
-                <div class="mb-3">
-                    <label for="league1" class="form-label">Selecciona una Liga:</label>
-                    <select id="league1" class="form-select">
-                        <option value="">Selecciona una Liga</option>
-                    </select>
+            <!-- Nueva sección de instrucciones -->
+            <div class="instructions-container fade-in mb-4">
+                <div class="instructions-header" onclick="toggleInstructions()">
+                    <h2 class="h5 mb-3 d-flex align-items-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        ¿Cómo funciona esta herramienta?
+                        <i class="fas fa-chevron-down ms-2" id="instructions-chevron"></i>
+                    </h2>
                 </div>
-
-                <!-- Second Country -->
-                <div class="mb-3">
-                    <label for="country2" class="form-label">Selecciona un Segundo País:</label>
-                    <select id="country2" class="form-select">
-                        <option value="">Selecciona un País</option>
-                        {% for country in countries.keys() %}
-                            <option value="{{ country }}">{{ country }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Second League -->
                 
-
-                <!-- Submit Button -->
-                <button type="button" class="btn btn-primary" onclick="compareLeagues()">Comparar</button>
-            </form>
-            <!-- Result -->
-            <div id="result-container">
-                <p id="result"></p>
-                <div id="salary-info" style="display: none;">
-                    <h3>Información de Salarios:</h3>
-                    <div id="original-league">
-                        <h4>Liga Original</h4>
-                        <p>Mínimo: €<span id="original-min"></span></p>
-                        <p>Promedio: €<span id="original-avg"></span></p>
-                        <p>Máximo: €<span id="original-max"></span></p>
+                <div class="instructions-content" id="instructions-content">
+                    <!-- Nueva sección de metodología -->
+                    <div class="methodology-section mb-4">
+                        <h3 class="h6 mb-3">
+                            <i class="fas fa-brain me-2"></i>
+                            Metodología
+                        </h3>
+                        <div class="methodology-content">
+                            <p class="mb-2">Esta herramienta utiliza tecnología avanzada de Inteligencia Artificial para realizar sus cálculos:</p>
+                            <ul class="methodology-features">
+                                <li>
+                                    <i class="fas fa-database me-2"></i>
+                                    <span>Datos recopilados mediante una encuesta propia a expertos del fútbol</span>
+                                </li>
+                                <li>
+                                    <i class="fas fa-network-wired me-2"></i>
+                                    <span>Procesamiento mediante redes neuronales entrenadas</span>
+                                </li>
+                                <li>
+                                    <i class="fas fa-robot me-2"></i>
+                                    <span>Análisis con modelos de IA para comparaciones precisas</span>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
-                    <div id="predicted-league">
-                        <h4>Liga Equivalente</h4>
-                        <p>Mínimo: €<span id="predicted-min"></span></p>
-                        <p>Promedio: €<span id="predicted-avg"></span></p>
-                        <p>Máximo: €<span id="predicted-max"></span></p>
+
+                    <div class="instruction-step">
+                        <span class="step-number">1</span>
+                        <p>Selecciona el país y la liga de origen que deseas comparar.</p>
+                    </div>
+                    
+                    <div class="instruction-step">
+                        <span class="step-number">2</span>
+                        <p>Elige el país de destino para encontrar la liga equivalente.</p>
+                    </div>
+                    
+                    <div class="instruction-step">
+                        <span class="step-number">3</span>
+                        <p>La herramienta analizará y comparará:</p>
+                        <ul class="instruction-features">
+                            <li><i class="fas fa-chart-line me-2"></i>Nivel competitivo de las ligas</li>
+                            <li><i class="fas fa-coins me-2"></i>Rangos salariales</li>
+                            <li><i class="fas fa-percentage me-2"></i>Diferencias porcentuales</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="instruction-step">
+                        <span class="step-number">4</span>
+                        <p>Recibirás un análisis detallado mostrando:</p>
+                        <ul class="instruction-features">
+                            <li><i class="fas fa-equals me-2"></i>La liga equivalente en el país seleccionado</li>
+                            <li><i class="fas fa-chart-bar me-2"></i>Comparación de salarios mínimos, promedios y máximos</li>
+                            <li><i class="fas fa-balance-scale me-2"></i>Análisis comparativo entre ambas ligas</li>
+                        </ul>
                     </div>
                 </div>
             </div>
-            <!-- Primero, añade el HTML del spinner después del botón de comparar -->
+            <!-- Fin de la sección de instrucciones -->
+
+            <form id="compare-form" class="fade-in">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="country1" class="form-label">
+                            <i class="fas fa-globe-americas me-2"></i>
+                            País de Origen
+                        </label>
+                        <select id="country1" class="form-select" onchange="populateLeagues('country1', 'league1')">
+                            <option value="">Selecciona un País</option>
+                            {% for country in countries.keys() %}
+                                <option value="{{ country }}">{{ country }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="league1" class="form-label">
+                            <i class="fas fa-trophy me-2"></i>
+                            Liga de Origen
+                        </label>
+                        <select id="league1" class="form-select">
+                            <option value="">Selecciona una Liga</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="country2" class="form-label">
+                            <i class="fas fa-globe-americas me-2"></i>
+                            País de Destino
+                        </label>
+                        <select id="country2" class="form-select">
+                            <option value="">Selecciona un País</option>
+                            {% for country in countries.keys() %}
+                                <option value="{{ country }}">{{ country }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-primary w-100" onclick="compareLeagues()">
+                    <i class="fas fa-exchange-alt me-2"></i>
+                    Comparar Ligas
+                </button>
+            </form>
+
             <div id="loading-spinner" class="spinner-container" style="display: none;">
-                <div class="spinner-border text-primary" role="status">
+                <div class="spinner-border" role="status">
                     <span class="visually-hidden">Cargando...</span>
                 </div>
-                <p class="spinner-text">Procesando resultados...</p>
+                <p class="spinner-text">Analizando datos...</p>
+            </div>
+
+            <div id="result-container">
+                <p id="result" class="fade-in" style="display: none;"></p>
+                
+                <div id="salary-info" class="fade-in" style="display: none;">
+                    <div class="comparison-grid">
+                        <div id="original-league" class="league-card">
+                            <h4><i class="fas fa-chart-line me-2"></i>Liga Original</h4>
+                            <div class="salary-stat">
+                                <div>Mínimo</div>
+                                <span id="original-min"></span>
+                            </div>
+                            <div class="salary-stat">
+                                <div>Promedio</div>
+                                <span id="original-avg"></span>
+                            </div>
+                            <div class="salary-stat">
+                                <div>Máximo</div>
+                                <span id="original-max"></span>
+                            </div>
+                        </div>
+
+                        <div id="predicted-league" class="league-card">
+                            <h4><i class="fas fa-chart-bar me-2"></i>Liga Equivalente</h4>
+                            <div class="salary-stat">
+                                <div>Mínimo</div>
+                                <span id="predicted-min"></span>
+                            </div>
+                            <div class="salary-stat">
+                                <div>Promedio</div>
+                                <span id="predicted-avg"></span>
+                            </div>
+                            <div class="salary-stat">
+                                <div>Máximo</div>
+                                <span id="predicted-max"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -134,20 +516,19 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Use safe JSON parsing for the countries data
+        // Mantener el JavaScript existente sin cambios
         const countries = JSON.parse('{{ countries|tojson|safe }}');
         
-        // Add error handling for countries data
         if (!countries) {
             console.error('Countries data not loaded properly');
         } else {
             console.log('Countries loaded:', countries);
         }
-        // Populate leagues based on the selected country
+
         function populateLeagues(countryId, leagueId) {
             const country = document.getElementById(countryId).value;
             const leagueDropdown = document.getElementById(leagueId);
-            leagueDropdown.innerHTML = "";
+            leagueDropdown.innerHTML = "<option value=''>Selecciona una Liga</option>";
 
             if (countries[country]) {
                 countries[country].forEach(league => {
@@ -166,7 +547,6 @@
                       .replace('Ñ', 'N');
         }
 
-        // Compare leagues
         async function compareLeagues() {
             try {
                 const country1 = document.getElementById("country1").value;
@@ -174,30 +554,26 @@
                 const country2 = document.getElementById("country2").value;
 
                 if (!country1 || !league1 || !country2) {
+                    document.getElementById('result').style.display = 'block';
                     document.getElementById('result').textContent = "Por favor, complete todos los campos";
                     document.getElementById('salary-info').style.display = 'none';
                     return;
                 }
 
-                // Mostrar spinner y ocultar resultados anteriores
                 document.getElementById('loading-spinner').style.display = 'block';
-                document.getElementById('result').textContent = '';
+                document.getElementById('result').style.display = 'none';
                 document.getElementById('salary-info').style.display = 'none';
 
                 const requestData = {
                     country1: sanitizeString(country1),
-                    league1: sanitizeString(league1)
-                            .replace("Division", "Division")
-                            .replace("Federacion", "Federacion"),
+                    league1: sanitizeString(league1),
                     country2: sanitizeString(country2)
                 };
-
-                console.log("Sending request with data:", requestData);
 
                 const response = await fetch("/", {
                     method: "POST",
                     headers: { 
-                        "Content-Type": "application/json; charset=utf-8",
+                        "Content-Type": "application/json",
                         "Accept": "application/json"
                     },
                     body: JSON.stringify(requestData)
@@ -205,7 +581,6 @@
 
                 const result = await response.json();
                 
-                // Ocultar spinner antes de mostrar resultados
                 document.getElementById('loading-spinner').style.display = 'none';
                 
                 if (!response.ok || result.error) {
@@ -214,81 +589,91 @@
 
                 handleResponse(result);
             } catch (error) {
-                // Ocultar spinner en caso de error
                 document.getElementById('loading-spinner').style.display = 'none';
-                console.error('Error:', error);
+                document.getElementById('result').style.display = 'block';
                 document.getElementById('result').textContent = `Error: ${error.message}`;
                 document.getElementById('salary-info').style.display = 'none';
             }
         }
 
-        // Update your existing AJAX success handler
         function handleResponse(response) {
+            document.getElementById('result').style.display = 'block';
+            
             if (response.error) {
                 document.getElementById('result').textContent = response.result || response.error;
                 document.getElementById('salary-info').style.display = 'none';
                 return;
             }
 
-            // Mostrar el resultado
             document.getElementById('result').textContent = response.result;
             
-            // Mostrar información de salarios
             if (response.salary_info) {
                 document.getElementById('salary-info').style.display = 'block';
                 
-                // Actualizar salarios de la liga original
                 if (response.salary_info.original) {
                     document.getElementById('original-league').style.display = 'block';
-                    document.getElementById('original-min').textContent = response.salary_info.original.salaries.min.toLocaleString();
-                    document.getElementById('original-avg').textContent = response.salary_info.original.salaries.avg.toLocaleString();
-                    document.getElementById('original-max').textContent = response.salary_info.original.salaries.max.toLocaleString();
+                    document.getElementById('original-min').textContent = '€' + response.salary_info.original.salaries.min.toLocaleString();
+                    document.getElementById('original-avg').textContent = '€' + response.salary_info.original.salaries.avg.toLocaleString();
+                    document.getElementById('original-max').textContent = '€' + response.salary_info.original.salaries.max.toLocaleString();
                 } else {
                     document.getElementById('original-league').style.display = 'none';
                 }
                 
-                // Actualizar salarios de la liga predicha
                 if (response.salary_info.predicted) {
                     document.getElementById('predicted-league').style.display = 'block';
-                    document.getElementById('predicted-min').textContent = response.salary_info.predicted.salaries.min.toLocaleString();
-                    document.getElementById('predicted-avg').textContent = response.salary_info.predicted.salaries.avg.toLocaleString();
-                    document.getElementById('predicted-max').textContent = response.salary_info.predicted.salaries.max.toLocaleString();
+                    document.getElementById('predicted-min').textContent = '€' + response.salary_info.predicted.salaries.min.toLocaleString();
+                    document.getElementById('predicted-avg').textContent = '€' + response.salary_info.predicted.salaries.avg.toLocaleString();
+                    document.getElementById('predicted-max').textContent = '€' + response.salary_info.predicted.salaries.max.toLocaleString();
                 } else {
                     document.getElementById('predicted-league').style.display = 'none';
                 }
 
-                // Añadir información de diferencias
                 if (response.salary_info.differences) {
                     const differences = response.salary_info.differences;
                     const differencesHtml = `
-                        <div id="salary-differences">
-                            <h4>Comparación de Salarios</h4>
-                            <p>${response.salary_info.comparison_message}</p>
-                            <p>Diferencias porcentuales:</p>
-                            <ul>
-                                <li>Salario mínimo: <span class="salary-diff ${differences.differences.min_diff >= 0 ? 'positive' : 'negative'}">${differences.differences.min_diff}%</span></li>
-                                <li>Salario promedio: <span class="salary-diff ${differences.differences.avg_diff >= 0 ? 'positive' : 'negative'}">${differences.differences.avg_diff}%</span></li>
-                                <li>Salario máximo: <span class="salary-diff ${differences.differences.max_diff >= 0 ? 'positive' : 'negative'}">${differences.differences.max_diff}%</span></li>
-                            </ul>
+                        <div class="league-card mt-4 fade-in">
+                            <h4><i class="fas fa-percentage me-2"></i>Comparación de Salarios</h4>
+                            <p class="comparison-message">${response.salary_info.comparison_message}</p>
+                            <div class="salary-stat">
+                                <div>Salario mínimo</div>
+                                <span class="salary-diff ${differences.differences.min_diff >= 0 ? 'positive' : 'negative'}">${differences.differences.min_diff}%</span>
+                            </div>
+                            <div class="salary-stat">
+                                <div>Salario promedio</div>
+                                <span class="salary-diff ${differences.differences.avg_diff >= 0 ? 'positive' : 'negative'}">${differences.differences.avg_diff}%</span>
+                            </div>
+                            <div class="salary-stat">
+                                <div>Salario máximo</div>
+                                <span class="salary-diff ${differences.differences.max_diff >= 0 ? 'positive' : 'negative'}">${differences.differences.max_diff}%</span>
+                            </div>
                         </div>
                     `;
                     
-                    // Eliminar diferencias anteriores si existen
                     const oldDiff = document.getElementById('salary-differences');
                     if (oldDiff) {
                         oldDiff.remove();
                     }
                     
-                    // Insertar nuevas diferencias
-                    const salaryInfo = document.getElementById('salary-info');
-                    const diffDiv = document.createElement('div');
-                    diffDiv.innerHTML = differencesHtml;
-                    salaryInfo.appendChild(diffDiv);
+                    document.getElementById('salary-info').insertAdjacentHTML('beforeend', differencesHtml);
                 }
             } else {
                 document.getElementById('salary-info').style.display = 'none';
             }
         }
+
+        // Función para toggle de las instrucciones
+        function toggleInstructions() {
+            const content = document.getElementById('instructions-content');
+            const chevron = document.getElementById('instructions-chevron');
+            
+            content.classList.toggle('show');
+            chevron.classList.toggle('rotated');
+        }
+
+        // Mostrar instrucciones por defecto al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleInstructions();
+        });
     </script>
 </body>
 </html>

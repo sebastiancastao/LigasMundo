@@ -229,7 +229,7 @@ def home():
             # Initialize variables
             country = None
             league_type = "Primera"  # default value
-            
+            resultspain=[]
             country = country_mapping.get(country1)
             if country is None:
                 logger.error(f"Invalid country: {country1}")
@@ -256,14 +256,97 @@ def home():
                 elif league1 in ["Tercera Division", "Primera Federacion"]:
                     logger.debug(f"Processing Tercera Division for country: {country}")
                     resultNum = paisTerceraDivisionEsp(int(country))
+                elif country2 == "Espana":
+                    logger.debug(f"Processing Primera Division for country: {country}")
+                    country_num = country_mapping.get(country1)
+                    if country_num is None:
+                        return jsonify({
+                            "error": "Invalid country",
+                            "message": f"Country not found: {country1}"
+                        }), 400
+                    
+                    resultNum1 = ligaPaisPrimera(0, int(country_num))
+                    resultspain.append(resultNum1)
+                    
+                    resultNum2 = ligaPaisSegunda(1, int(country_num))
+                    resultspain.append(resultNum2)
+                    
+                    resultNum3 = ligaPaisTercera(2, int(country_num))
+                    resultspain.append(resultNum3)
+                    
+                    indice = 0
+                    for i in range(0, len(resultspain) - 1):
+                        if resultspain[i] > resultspain[i + 1]:
+                            indice = i
+                    
+                    if indice == 0:
+                        result = MESSAGES['primera_esp']
+                        predicted_league = "Primera Division"
+                    elif indice == 1:
+                        result = MESSAGES['segunda_esp']
+                        predicted_league = "Segunda Division"
+                    elif indice == 2: 
+                        result = MESSAGES['tercera_esp']
+                        predicted_league = "Tercera Division"
+
+                    # Prepare salary information
+                    salary_info = {}
+                    
+                    # Get league type for original country
+                    if league1 == "Primera Division":
+                        league_type = "Primera"
+                    elif league1 == "Segunda Division":
+                        league_type = "Segunda"
+                    elif league1 in ["Tercera Division", "Primera Federacion"]:
+                        league_type = "Tercera"
+
+                    # Add original country salary info
+                    if country1 in salary_data:
+                        original_salaries = salary_data[country1][league_type]
+                        salary_info["original"] = {
+                            "country": country1,
+                            "league": league1,
+                            "salaries": original_salaries
+                        }
+
+                    # Add predicted (Spain) salary info
+                    predicted_type = "Primera" if "Primera" in predicted_league else "Segunda" if "Segunda" in predicted_league else "Tercera"
+                    predicted_salaries = salary_data["Espana"][predicted_type]
+                    salary_info["predicted"] = {
+                        "country": "Espana",
+                        "league": predicted_league,
+                        "salaries": predicted_salaries
+                    }
+
+                    # Calculate salary differences
+                    if "original" in salary_info:
+                        salary_differences = calculate_salary_differences(
+                            original_salaries,
+                            predicted_salaries
+                        )
+                        salary_info["differences"] = salary_differences
+
+                        # Add interpretative message
+                        diff = salary_differences["average_difference"]
+                        if diff > 0:
+                            salary_info["comparison_message"] = f"Los salarios en la liga equivalente son en promedio {abs(diff)}% mayores"
+                        elif diff < 0:
+                            salary_info["comparison_message"] = f"Los salarios en la liga equivalente son en promedio {abs(diff)}% menores"
+                        else:
+                            salary_info["comparison_message"] = "Los salarios son similares en ambas ligas"
+
+                    return jsonify({
+                        "result": result,
+                        "original_league": league1,
+                        "predicted_league": predicted_league,
+                        "salary_info": salary_info
+                    })
                 else:
                     logger.error(f"Invalid league combination: {league1}, {country2}")
                     return jsonify({
                         "error": "Invalid league",
                         "message": f"Invalid league combination: {league1}, {country2}"
                     }), 400
-                
-                logger.debug(f"ResultNum after processing: {resultNum}")
             except Exception as e:
                 logger.error(f"Neural network error: {str(e)}")
                 logger.error(traceback.format_exc())
@@ -275,6 +358,9 @@ def home():
             result_array = []
             print(resultNum)
             print("resultNum")
+
+            # Initialize predicted_league with a default value
+            predicted_league = None
 
             if country2 == "Espana":
                 if resultNum == 0:
@@ -368,7 +454,15 @@ def home():
                 elif indice == 2: 
                     result = MESSAGES['tercera_esp']
                     predicted_league = "Tercera Division"
-            
+
+            # Verify predicted_league is set
+            if predicted_league is None:
+                logger.error("predicted_league was not set")
+                return jsonify({
+                    "error": "Processing error",
+                    "message": "Could not determine predicted league"
+                }), 500
+
             # Create response
             try:
                 salary_info = {}
