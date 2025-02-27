@@ -348,6 +348,13 @@
                 Comparador de Ligas
             </h1>
 
+            <!-- Botón de reinicio -->
+            <div class="reset-button-container mb-4">
+                <button class="btn btn-secondary" onclick="resetPage()">
+                    <i class="fas fa-sync-alt me-2"></i> Reiniciar
+                </button>
+            </div>
+
             <!-- Nueva sección de instrucciones -->
             <div class="instructions-container fade-in mb-4">
                 <div class="instructions-header" onclick="toggleInstructions()">
@@ -547,7 +554,7 @@
                       .replace('Ñ', 'N');
         }
 
-        async function compareLeagues() {
+        function compareLeagues() {
             try {
                 const country1 = document.getElementById("country1").value;
                 const league1 = document.getElementById("league1").value;
@@ -560,9 +567,11 @@
                     return;
                 }
 
+                // Limpiar resultados anteriores
+                resetResults();
+
+                // Mostrar spinner de carga
                 document.getElementById('loading-spinner').style.display = 'block';
-                document.getElementById('result').style.display = 'none';
-                document.getElementById('salary-info').style.display = 'none';
 
                 const requestData = {
                     country1: sanitizeString(country1),
@@ -570,24 +579,43 @@
                     country2: sanitizeString(country2)
                 };
 
-                const response = await fetch("/", {
+                fetch("/api/compare", {
                     method: "POST",
                     headers: { 
                         "Content-Type": "application/json",
                         "Accept": "application/json"
                     },
                     body: JSON.stringify(requestData)
+                })
+                .then(response => {
+                    // Verificar el tipo de contenido primero
+                    const contentType = response.headers.get("content-type");
+                    if (!contentType || !contentType.includes("application/json")) {
+                        console.error("Respuesta no JSON:", contentType);
+                        return response.text().then(text => {
+                            console.error("Contenido de la respuesta:", text.substring(0, 500));
+                            throw new Error(`Respuesta no válida del servidor (${response.status}): No es JSON`);
+                        });
+                    }
+                    
+                    return response.json().then(data => {
+                        if (!response.ok) {
+                            throw new Error(data.message || data.error || `Error ${response.status}`);
+                        }
+                        return data;
+                    });
+                })
+                .then(result => {
+                    document.getElementById('loading-spinner').style.display = 'none';
+                    handleResponse(result);
+                })
+                .catch(error => {
+                    console.error("Error en la solicitud:", error);
+                    document.getElementById('loading-spinner').style.display = 'none';
+                    document.getElementById('result').style.display = 'block';
+                    document.getElementById('result').textContent = `Error: ${error.message}`;
+                    document.getElementById('salary-info').style.display = 'none';
                 });
-
-                const result = await response.json();
-                
-                document.getElementById('loading-spinner').style.display = 'none';
-                
-                if (!response.ok || result.error) {
-                    throw new Error(result.message || result.error || 'Error desconocido');
-                }
-
-                handleResponse(result);
             } catch (error) {
                 document.getElementById('loading-spinner').style.display = 'none';
                 document.getElementById('result').style.display = 'block';
@@ -597,17 +625,18 @@
         }
 
         function handleResponse(response) {
+            // Mostrar el resultado principal
             document.getElementById('result').style.display = 'block';
             
             if (response.error) {
                 document.getElementById('result').textContent = response.result || response.error;
-                document.getElementById('salary-info').style.display = 'none';
-                return;
+                return; // No mostrar información de salarios si hay error
             }
 
             document.getElementById('result').textContent = response.result;
             
             if (response.salary_info) {
+                // Mostrar la sección de información de salarios
                 document.getElementById('salary-info').style.display = 'block';
                 
                 if (response.salary_info.original) {
@@ -631,7 +660,7 @@
                 if (response.salary_info.differences) {
                     const differences = response.salary_info.differences;
                     const differencesHtml = `
-                        <div class="league-card mt-4 fade-in">
+                        <div id="salary-differences" class="league-card mt-4 fade-in">
                             <h4><i class="fas fa-percentage me-2"></i>Comparación de Salarios</h4>
                             <p class="comparison-message">${response.salary_info.comparison_message}</p>
                             <div class="salary-stat">
@@ -649,11 +678,13 @@
                         </div>
                     `;
                     
+                    // Eliminar cualquier comparación anterior
                     const oldDiff = document.getElementById('salary-differences');
                     if (oldDiff) {
-                        oldDiff.remove();
+                        oldDiff.parentNode.removeChild(oldDiff);
                     }
                     
+                    // Añadir la nueva comparación
                     document.getElementById('salary-info').insertAdjacentHTML('beforeend', differencesHtml);
                 }
             } else {
@@ -674,6 +705,48 @@
         document.addEventListener('DOMContentLoaded', function() {
             toggleInstructions();
         });
+
+        // Función para limpiar los resultados
+        function resetResults() {
+            // Limpiar el resultado principal
+            document.getElementById('result').textContent = '';
+            document.getElementById('result').style.display = 'none';
+            
+            // Ocultar la sección de información de salarios
+            document.getElementById('salary-info').style.display = 'none';
+            
+            // Limpiar los valores de salarios solo si existen
+            const originalMin = document.getElementById('original-min');
+            if (originalMin) originalMin.textContent = '';
+            
+            const originalAvg = document.getElementById('original-avg');
+            if (originalAvg) originalAvg.textContent = '';
+            
+            const originalMax = document.getElementById('original-max');
+            if (originalMax) originalMax.textContent = '';
+            
+            const predictedMin = document.getElementById('predicted-min');
+            if (predictedMin) predictedMin.textContent = '';
+            
+            const predictedAvg = document.getElementById('predicted-avg');
+            if (predictedAvg) predictedAvg.textContent = '';
+            
+            const predictedMax = document.getElementById('predicted-max');
+            if (predictedMax) predictedMax.textContent = '';
+            
+            // Eliminar la sección de diferencias si existe
+            const salaryDifferences = document.getElementById('salary-differences');
+            if (salaryDifferences) {
+                salaryDifferences.parentNode.removeChild(salaryDifferences);
+            }
+            
+            // También limpiar cualquier otro elemento que pueda contener resultados anteriores
+            const originalLeague = document.getElementById('original-league');
+            if (originalLeague) originalLeague.style.display = 'none';
+            
+            const predictedLeague = document.getElementById('predicted-league');
+            if (predictedLeague) predictedLeague.style.display = 'none';
+        }
     </script>
 </body>
 </html>

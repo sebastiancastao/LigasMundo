@@ -1,10 +1,11 @@
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template, jsonify, make_response
 from NNEpicContentInterLiga import paisPrimeraDivisionEsp, paisSegundaDivisionEsp, paisTerceraDivisionEsp, ligaPaisPrimera, ligaPaisSegunda, ligaPaisTercera
 import json
 import logging
 import traceback
 import sys
 import codecs
+import numpy as np
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ salary_data = {
     "China": {"Primera": {"min": 47477, "avg": 190000, "max": 19900000},
              "Segunda": {"min": 19000, "avg": 104500, "max": 190000},
              "Tercera": {"min": 9500, "avg": 76250, "max": 143000}},
-    "México": {"Primera": {"min": 45600, "avg": 1122800, "max": 2200000},
+    "Mexico": {"Primera": {"min": 45600, "avg": 1122800, "max": 2200000},
               "Segunda": {"min": 9000, "avg": 19200, "max": 210000},
               "Tercera": {"min": 0, "avg": 5124, "max": 12000}},
     "Estados Unidos": {"Primera": {"min": 67000, "avg": 5733500, "max": 11400000},
@@ -97,7 +98,7 @@ salary_data = {
     "Luxemburgo": {"Primera": {"min": 16740, "avg": 33480, "max": 66960},
                   "Segunda": {"min": 5580, "avg": 13392, "max": 27900},
                   "Tercera": {"min": 1116, "avg": 5580, "max": 11160}},
-    "Espana": {"Primera": {"min": 150000, "avg": 2500000, "max": 10000000},
+    "Espana": {"Primera": {"min": 150000, "avg": 2500000, "max": 33330000},
                "Segunda": {"min": 50000, "avg": 500000, "max": 2000000},
                "Tercera": {"min": 20000, "avg": 100000, "max": 500000}}
 }
@@ -113,7 +114,7 @@ countries = {
     "Costa Rica": ["Primera Division", "Segunda Division", "Tercera Division"],
     "Brasil": ["Primera Division", "Segunda Division", "Tercera Division"],
     "Argentina": ["Primera Division", "Segunda Division", "Tercera Division"],
-    "México": ["Primera Division", "Segunda Division", "Tercera Division"],
+    "Mexico": ["Primera Division", "Segunda Division", "Tercera Division"],
     "Estados Unidos": ["Primera Division", "Segunda Division", "Tercera Division"],
     "Sahara Occidental": ["Primera Division", "Segunda Division", "Tercera Division"],
     "Arabia Saudita": ["Primera Division", "Segunda Division", "Tercera Division"],
@@ -145,7 +146,7 @@ country_mapping = {
     "Argentina": 3,
     "Costa Rica": 10,
     "Sahara Occidental": 27,
-    "México": 20,
+    "Mexico": 20,
     "Brasil": 5,
     "Arabia Saudita": 2,
     "Eslovenia": 13,
@@ -164,8 +165,11 @@ country_mapping = {
     "Luxemburgo": 18,
     "Venezuela": 27,
     "Ecuador": 10,
-    "Espana": 0  # Añadido España
+    "Espana": 0
 }
+
+# Crear el reverse_mapping
+reverse_mapping = {v: k for k, v in country_mapping.items()}
 
 # Mensajes en español sin caracteres especiales
 MESSAGES = {
@@ -205,331 +209,168 @@ def calculate_salary_differences(original_salaries, predicted_salaries):
             "average_difference": 0
         }
 
-@app.route("/", methods=["GET", "POST"])
-def home():
-    if request.method == "POST":
-        try:
-            data = request.json
-            logger.debug(f"Received data: {data}")
-            
-            country1 = data.get("country1", "").replace("España", "Espana")
-            league1 = data.get("league1", "")
-            country2 = data.get("country2", "").replace("España", "Espana")
-            
-            logger.debug(f"Processing request for: {country1}, {league1}, {country2}")
+# Definir los países de élite (solo los principales)
+elite_countries = ["Espana", "Francia", "Italia", "Portugal", "Inglaterra"]
 
-            # Validate input
-            if not all([country1, league1, country2]):
-                logger.error("Missing required fields")
-                return jsonify({
-                    "error": "Missing data",
-                    "message": "Please provide all required fields"
-                }), 400
+@app.route("/api/compare", methods=["POST"])
+def compare_leagues_api():
+    """Endpoint separado para la API JSON"""
+    try:
+        if not request.is_json:
+            return jsonify({
+                "error": "Invalid request",
+                "message": "Request must be JSON"
+            }), 400
+            
+        data = request.json
+        logger.debug(f"Received data: {data}")
+        
+        country1 = data.get("country1", "").replace("España", "Espana")
+        league1 = data.get("league1", "")
+        country2 = data.get("country2", "").replace("España", "Espana")
+        
+        logger.debug(f"Processing request for: {country1}, {league1}, {country2}")
 
-            # Initialize variables
+        # Validate input
+        if not all([country1, league1, country2]):
+            logger.error("Missing required fields")
+            return jsonify({
+                "error": "Missing data",
+                "message": "Please provide all required fields"
+            }), 400
+
+        # Determinar el tipo de liga
+        league_type = None
+        if "Primera" in league1:
+            league_type = "Primera"
+        elif "Segunda" in league1:
+            league_type = "Segunda"
+        else:
+            league_type = "Tercera"
+
+        # Verificar si AMBOS países son de élite
+        is_elite_case = (country1 in elite_countries and country2 in elite_countries) and "Primera" in league1
+
+        # Si es un caso de élite, forzar Primera División
+        if is_elite_case:
+            logger.debug(f"Caso especial de élite detectado: {country1} -> {country2}")
+            resultNum = 0  # Primera División
+        else:
+            # Usar el método anterior para países no élite
             country = None
-            league_type = "Primera"  # default value
-            resultspain=[]
-            country = country_mapping.get(country1)
-            if country is None:
-                logger.error(f"Invalid country: {country1}")
+            if country1 in country_mapping:
+                country = country_mapping[country1]
+            else:
+                logger.error(f"Unknown country1: {country1}")
                 return jsonify({
                     "error": "Invalid country",
-                    "message": f"Country not found: {country1}"
+                    "message": f"Country not supported: {country1}"
                 }), 400
-
-            # League type determination
-            if league1 == "Primera Division":
-                league_type = "Primera"
-            elif league1 == "Segunda Division":
-                league_type = "Segunda"
-            elif league1 in ["Tercera Division", "Primera Federacion"]:
-                league_type = "Tercera"
             
             try:
-                if league1 == "Primera Division" and country2 != "Espana":
-                    logger.debug(f"Processing Primera Division for country: {country}")
-                    resultNum = paisPrimeraDivisionEsp(int(country))
-                elif league1 == "Segunda Division" and country2 != "Espana":
-                    logger.debug(f"Processing Segunda Division for country: {country}")
-                    resultNum = paisSegundaDivisionEsp(int(country))
-                elif league1 in ["Tercera Division", "Primera Federacion"]:
-                    logger.debug(f"Processing Tercera Division for country: {country}")
-                    resultNum = paisTerceraDivisionEsp(int(country))
-                elif country2 == "Espana":
-                    logger.debug(f"Processing Primera Division for country: {country}")
-                    country_num = country_mapping.get(country1)
-                    if country_num is None:
-                        return jsonify({
-                            "error": "Invalid country",
-                            "message": f"Country not found: {country1}"
-                        }), 400
-                    
-                    resultNum1 = ligaPaisPrimera(0, int(country_num))
-                    resultspain.append(resultNum1)
-                    
-                    resultNum2 = ligaPaisSegunda(1, int(country_num))
-                    resultspain.append(resultNum2)
-                    
-                    resultNum3 = ligaPaisTercera(2, int(country_num))
-                    resultspain.append(resultNum3)
-                    
-                    indice = 0
-                    for i in range(0, len(resultspain) - 1):
-                        if resultspain[i] > resultspain[i + 1]:
-                            indice = i
-                    
-                    if indice == 0:
-                        result = MESSAGES['primera_esp']
-                        predicted_league = "Primera Division"
-                    elif indice == 1:
-                        result = MESSAGES['segunda_esp']
-                        predicted_league = "Segunda Division"
-                    elif indice == 2: 
-                        result = MESSAGES['tercera_esp']
-                        predicted_league = "Tercera Division"
-
-                    # Prepare salary information
-                    salary_info = {}
-                    
-                    # Get league type for original country
-                    if league1 == "Primera Division":
-                        league_type = "Primera"
-                    elif league1 == "Segunda Division":
-                        league_type = "Segunda"
-                    elif league1 in ["Tercera Division", "Primera Federacion"]:
-                        league_type = "Tercera"
-
-                    # Add original country salary info
-                    if country1 in salary_data:
-                        original_salaries = salary_data[country1][league_type]
-                        salary_info["original"] = {
-                            "country": country1,
-                            "league": league1,
-                            "salaries": original_salaries
-                        }
-
-                    # Add predicted (Spain) salary info
-                    predicted_type = "Primera" if "Primera" in predicted_league else "Segunda" if "Segunda" in predicted_league else "Tercera"
-                    predicted_salaries = salary_data["Espana"][predicted_type]
-                    salary_info["predicted"] = {
-                        "country": "Espana",
-                        "league": predicted_league,
-                        "salaries": predicted_salaries
-                    }
-
-                    # Calculate salary differences
-                    if "original" in salary_info:
-                        salary_differences = calculate_salary_differences(
-                            original_salaries,
-                            predicted_salaries
-                        )
-                        salary_info["differences"] = salary_differences
-
-                        # Add interpretative message
-                        diff = salary_differences["average_difference"]
-                        if diff > 0:
-                            salary_info["comparison_message"] = f"Los salarios en la liga equivalente son en promedio {abs(diff)}% mayores"
-                        elif diff < 0:
-                            salary_info["comparison_message"] = f"Los salarios en la liga equivalente son en promedio {abs(diff)}% menores"
-                        else:
-                            salary_info["comparison_message"] = "Los salarios son similares en ambas ligas"
-
-                    return jsonify({
-                        "result": result,
-                        "original_league": league1,
-                        "predicted_league": predicted_league,
-                        "salary_info": salary_info
-                    })
+                if league1 == "Primera Division" and country2 != "Spain":
+                    resultNum = int(paisPrimeraDivisionEsp(country))
+                elif league1 == "Segunda Division" and country2 != "Spain":
+                    resultNum = int(paisSegundaDivisionEsp(country))
+                elif league1 == "Tercera Division":
+                    resultNum = int(paisTerceraDivisionEsp(country))
                 else:
-                    logger.error(f"Invalid league combination: {league1}, {country2}")
-                    return jsonify({
-                        "error": "Invalid league",
-                        "message": f"Invalid league combination: {league1}, {country2}"
-                    }), 400
+                    resultNum = 0
             except Exception as e:
-                logger.error(f"Neural network error: {str(e)}")
-                logger.error(traceback.format_exc())
+                logger.error(f"Error in prediction: {str(e)}")
                 return jsonify({
-                    "error": "Processing error",
-                    "message": str(e)
+                    "error": "Prediction error",
+                    "message": f"Error processing prediction: {str(e)}"
                 }), 500
 
-            result_array = []
-            print(resultNum)
-            print("resultNum")
-
-            # Initialize predicted_league with a default value
-            predicted_league = None
-
-            if country2 == "Espana":
-                if resultNum == 0:
-                    result = MESSAGES['primera_esp']
-                    predicted_league = "Primera Division"
-                elif resultNum == 1:
-                    result = MESSAGES['segunda_esp']
-                    predicted_league = "Segunda Division"
-                elif resultNum == 2:
-                    result = MESSAGES['primera_fed']
-                    predicted_league = "Primera Federacion"
-                elif resultNum == 3:
-                    result = MESSAGES['segunda_fed']
-                    predicted_league = "Segunda Federacion"
-            else: 
-                if country2 == "United States" or country2 == "Estados Unidos":
-                    country2 = 13
-                elif country2 == "England" or country2 == "Inglaterra":
-                    country2 = 25
-                elif country2 == "Marocco" or country2 == "Marruecos":
-                    country2 = 18
-                elif country2 == "France" or country2 == "Francia":
-                    country2 = 14
-                elif country2 == "China" or country2 == "China":
-                    country2 = 6
-                elif country2 == "Portugal" or country2 == "Portugal":
-                    country2 = 24
-                elif country2 == "Argentina" or country2 == "Argentina":
-                    country2 = 2
-                elif country2 == "Costa Rica" or country2 == "Costa Rica":
-                    country2 = 9
-                elif country2 == "Sahara Occidental" or country2 == "Sahara Occidental":
-                    country2 = 26
-                elif country2 == "Mexico" or country2 == "México":
-                    country2 = 19
-                elif country2 == "Brazil" or country2 == "Brasil":
-                    country2 = 4
-                
-                elif country2 == "Saudi Arabia" or country2 == "Arabia Saudita":
-                    country2 = 1
-                
-                elif country2 == "Bolivia" or country2 == "Bolivia":
-                    country2 = 3
-                elif country2 == "Poland" or country2 == "Polonia":
-                    country = 23
-                elif country2 == "Egypt" or country2 == "Egipto":
-                    country2 = 11
-                elif country2 == "Colombia" or country2 == "Colombia":
-                    country2 = 7
-                elif country2 == "Paraguay" or country2 == "Paraguay":
-                    country2 = 22
-                elif country2 == "Latvia" or country2 == "Latvia":
-                    country2 = 16
-                elif country2 == "Italy" or country2 == "Italia":
-                    country2 = 15
-                elif country2 == "South Korea" or country2 == "Corea del Sur":
-                    country2 = 8
-                elif country2 == "Panama" or country2 == "Panama":
-                    country2 = 21
-                elif country2 == "Andorra" or country2 == "Andorra":
-                    country2 = 0
-                elif country2 == "Chile" or country2 == "Chile":
-                    country2 = 5
-                elif country2 == "Norway" or country2 == "Noruega":
-                    country2 = 20
-                elif country2 == "Luxembourg" or country2 == "Luxemburgo":
-                    country2 = 17
-                elif country2 == "Venezuela" or country2 == "Venezuela":
-                    country2 = 27
-                elif country2 == "Ecuador" or country2 == "Ecuador":
-                    country2 = 10
+        # Determinar la liga equivalente basada en resultNum
+        predicted_league = ""
+        result = ""
+        
+        if country2 == "Espana" or country2 == "España":
+            if resultNum == 0:
+                result = "La liga equivalente es: La Liga"
+                predicted_league = "La Liga"
+            elif resultNum == 1:
+                result = "La liga equivalente es: Segunda Division"
+                predicted_league = "Segunda Division"
+            elif resultNum == 2:
+                result = "La liga equivalente es: Primera Federacion"
+                predicted_league = "Primera Federacion"
+            elif resultNum == 3:
+                result = "La liga equivalente es: Segunda Federacion"
+                predicted_league = "Segunda Federacion"
+        else:
+            # Manejar otros países
+            if resultNum == 0:
+                result = f"La liga equivalente es: Primera Division de {country2}"
+                predicted_league = "Primera Division"
+            elif resultNum == 1:
+                result = f"La liga equivalente es: Segunda Division de {country2}"
+                predicted_league = "Segunda Division"
+            else:
+                result = f"La liga equivalente es: Tercera Division de {country2}"
+                predicted_league = "Tercera Division"
+        
+        # Crear información de salarios
+        salary_info = {}
+        
+        # Información del país de origen
+        if country1 in salary_data and league_type in salary_data[country1]:
+            salary_info["original"] = {
+                "country": country1,
+                "league": league1,
+                "salaries": salary_data[country1][league_type]
+            }
+        
+        # Información del país de destino
+        predicted_type = "Primera" if resultNum == 0 else "Segunda" if resultNum == 1 else "Tercera"
+        if country2 in salary_data and predicted_type in salary_data[country2]:
+            salary_info["predicted"] = {
+                "country": country2,
+                "league": predicted_league,
+                "salaries": salary_data[country2][predicted_type]
+            }
             
-                resultNum21 = ligaPaisPrimera(resultNum, country2)
-                result_array.append(resultNum21)
-                resultNum22 = ligaPaisSegunda(resultNum, country2)
-                result_array.append(resultNum22)
-                resultNum23 = ligaPaisTercera(resultNum, country2)
-                result_array.append(resultNum23)
-                print(result_array)
-                indice = 0
-                for i in range(0, len(result_array) - 1, 1):
-                    if result_array[i] > result_array[i + 1] and i < len(result_array) - 1:
-                        indice = i
+            # Calcular diferencias si tenemos ambos datos
+            if "original" in salary_info and "predicted" in salary_info:
+                salary_info["differences"] = calculate_salary_differences(
+                    salary_info["original"]["salaries"],
+                    salary_info["predicted"]["salaries"]
+                )
                 
-                if indice == 0:
-                    result = MESSAGES['primera_esp']
-                    predicted_league = "Primera Division"
-                elif indice == 1:
-                    result = MESSAGES['segunda_esp']
-                    predicted_league = "Segunda Division"
-                elif indice == 2: 
-                    result = MESSAGES['tercera_esp']
-                    predicted_league = "Tercera Division"
+                # Añadir mensaje interpretativo
+                diff = salary_info["differences"]["average_difference"]
+                if diff > 0:
+                    salary_info["comparison_message"] = f"Los salarios en la liga equivalente son en promedio {abs(diff)}% mayores"
+                elif diff < 0:
+                    salary_info["comparison_message"] = f"Los salarios en la liga equivalente son en promedio {abs(diff)}% menores"
+                else:
+                    salary_info["comparison_message"] = "Los salarios son similares en ambas ligas"
+        
+        # Devolver la respuesta JSON
+        response = make_response(jsonify({
+            "result": result,
+            "original_league": league1,
+            "predicted_league": predicted_league,
+            "salary_info": salary_info
+        }))
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return response
+        
+    except Exception as e:
+        logger.error(f"API error: {str(e)}")
+        logger.error(traceback.format_exc())
+        response = make_response(jsonify({
+            "error": "Server error",
+            "message": str(e)
+        }), 500)
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return response
 
-            # Verify predicted_league is set
-            if predicted_league is None:
-                logger.error("predicted_league was not set")
-                return jsonify({
-                    "error": "Processing error",
-                    "message": "Could not determine predicted league"
-                }), 500
-
-            # Create response
-            try:
-                salary_info = {}
-                if country1 in salary_data:
-                    original_salaries = salary_data[country1][league_type]
-                    salary_info["original"] = {
-                        "country": country1,
-                        "league": league1,
-                        "salaries": original_salaries
-                    }
-                
-                country2_name = country2
-                if isinstance(country2, int):
-                    reverse_mapping = {v: k for k, v in country_mapping.items()}
-                    country2_name = reverse_mapping.get(country2, country2)
-                
-                if country2_name in salary_data:
-                    predicted_type = "Primera" if "Primera" in predicted_league else "Segunda" if "Segunda" in predicted_league else "Tercera"
-                    predicted_salaries = salary_data[country2_name][predicted_type]
-                    salary_info["predicted"] = {
-                        "country": country2_name,
-                        "league": predicted_league,
-                        "salaries": predicted_salaries
-                    }
-                    
-                    # Calcular diferencias salariales
-                    if "original" in salary_info:
-                        salary_differences = calculate_salary_differences(
-                            original_salaries,
-                            predicted_salaries
-                        )
-                        salary_info["differences"] = salary_differences
-                        
-                        # Añadir mensaje interpretativo
-                        diff = salary_differences["average_difference"]
-                        if diff > 0:
-                            salary_info["comparison_message"] = f"Los salarios en la liga equivalente son en promedio {abs(diff)}% mayores"
-                        elif diff < 0:
-                            salary_info["comparison_message"] = f"Los salarios en la liga equivalente son en promedio {abs(diff)}% menores"
-                        else:
-                            salary_info["comparison_message"] = "Los salarios son similares en ambas ligas"
-
-                response_data = {
-                    "result": result,
-                    "original_league": league1,
-                    "predicted_league": predicted_league,
-                    "salary_info": salary_info
-                }
-
-                logger.debug(f"Response data: {response_data}")
-                return jsonify(response_data)
-
-            except Exception as e:
-                logger.error(f"Error creating response: {str(e)}")
-                logger.error(traceback.format_exc())
-                return jsonify({
-                    "error": "Response error",
-                    "message": str(e)
-                }), 500
-
-        except Exception as e:
-            error_msg = str(e).encode('ascii', 'ignore').decode('ascii')
-            return jsonify({
-                "error": "Server error",
-                "message": error_msg
-            }), 500
-
+@app.route("/", methods=["GET"])
+def home():
+    """Endpoint para la página principal"""
     return render_template("index.html", countries=countries)
 
 if __name__ == '__main__':
